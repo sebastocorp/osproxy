@@ -1,15 +1,6 @@
 nameOverride: ""
 fullnameOverride: ""
 
-####################################
-## DEPENDENCIES RELATED
-####################################
-custom-manifests:
-  customComponents: {}
-
-####################################
-## ENVOY RELATED
-####################################
 global:
 
   #
@@ -25,7 +16,7 @@ global:
   # imagePullSecrets:
   #   - name: image-pull-secret
 
-proxy:
+osproxy:
   enabled: true
 
   replicas: 3
@@ -133,9 +124,9 @@ proxy:
     #   requiredDuringSchedulingIgnoredDuringExecution:
     #     - labelSelector:
     #         matchLabels:
-    #           app.kubernetes.io/name: "envoy"
-    #           app.kubernetes.io/instance: "proxy"
-    #           component: proxy
+    #           app.kubernetes.io/name: "osproxy"
+    #           app.kubernetes.io/instance: "osproxy"
+    #           component: osproxy
     #       topologyKey: kubernetes.io/hostname
 
   # Topology settings for server pods
@@ -253,8 +244,6 @@ proxy:
   # Note: Configuration files are stored in ConfigMaps so sensitive data
   # such as passwords should be either mounted through extraSecretEnvironmentVars
   # or through a Kube secret.
-  # For more information see:
-  # https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/filter/filter
   config: |
     transferService:
       host: "http://example.com"
@@ -294,7 +283,7 @@ proxy:
     extraLabels: {}
 
   # Definition on an extra Role resource that can be created.
-  # This is intended to handle situations where some sidecar needs to restart envoy from outside, etc.
+  # This is intended to handle situations where some sidecar needs to restart osproxy from outside, etc.
   extraRole:
     create: false
     rules: []

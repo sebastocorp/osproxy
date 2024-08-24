@@ -1,16 +1,16 @@
-{{ if and .Values.proxy.enabled .Values.proxy.extraRole.create }}
+{{ if and .Values.osproxy.enabled .Values.osproxy.extraRole.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "osproxy.fullname" . }}
   labels:
     {{- include "osproxy.labels" . | nindent 4 }}
-  {{- with .Values.proxy.annotations }}
+  {{- with .Values.osproxy.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 
-{{- with .Values.proxy.extraRole.rules }}
+{{- with .Values.osproxy.extraRole.rules }}
 rules:
   {{- toYaml . | nindent 2 }}
 {{- end }}

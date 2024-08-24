@@ -1,4 +1,4 @@
-{{ if and .Values.proxy.enabled .Values.proxy.service.enabled }}
+{{ if and .Values.osproxy.enabled .Values.osproxy.service.enabled }}
 
 apiVersion: v1
 kind: Service
@@ -6,41 +6,41 @@ metadata:
   name: {{ include "osproxy.fullname" . }}
   labels:
     {{- include "osproxy.labels" . | nindent 4 }}
-  {{- with .Values.proxy.service.annotations }}
+  {{- with .Values.osproxy.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
 
-  {{- with .Values.proxy.service.type }}
+  {{- with .Values.osproxy.service.type }}
   type: {{ . }}
   {{- end }}
 
-  {{- with .Values.proxy.service.clusterIP }}
+  {{- with .Values.osproxy.service.clusterIP }}
   clusterIP: {{ . }}
   {{- end }}
 
   {{- if (semverCompare ">= 1.23-0" .Capabilities.KubeVersion.Version) }}
-  {{- with .Values.proxy.service.ipFamilyPolicy }}
+  {{- with .Values.osproxy.service.ipFamilyPolicy }}
   ipFamilyPolicy: {{ . }}
   {{- end }}
-  {{- with .Values.proxy.service.ipFamilies }}
+  {{- with .Values.osproxy.service.ipFamilies }}
   ipFamilies: {{ . | toYaml | nindent 2 }}
   {{- end }}
   {{- end }}
 
-  {{- with .Values.proxy.service.externalTrafficPolicy }}
+  {{- with .Values.osproxy.service.externalTrafficPolicy }}
   externalTrafficPolicy: {{ . }}
   {{- end }}
 
   # We want the servers to become available even if they're not ready
   # since this DNS is also used for join operations.
-  {{- with .Values.proxy.service.publishNotReadyAddresses }}
+  {{- with .Values.osproxy.service.publishNotReadyAddresses }}
   publishNotReadyAddresses: {{ . }}
   {{- end}}
 
   ports:
-  {{ range $key, $value := .Values.proxy.service.ports }}
+  {{ range $key, $value := .Values.osproxy.service.ports }}
     - name: {{ $value.name }}
       port: {{ $value.port }}
       targetPort: {{ $value.targetPort }}
@@ -49,7 +49,7 @@ spec:
       protocol: {{ . }}
       {{- end }}
 
-      {{- if and ($value.nodePort) (eq ($.Values.proxy.service.type | toString) "NodePort") }}
+      {{- if and ($value.nodePort) (eq ($.Values.osproxy.service.type | toString) "NodePort") }}
       nodePort: {{ $value.nodePort }}
       {{- end }}
   {{- end}}
@@ -57,7 +57,7 @@ spec:
   selector:
     component: osproxy
     {{- include "osproxy.selectorLabels" . | nindent 4 }}
-    {{- with .Values.proxy.extraLabels }}
+    {{- with .Values.osproxy.extraLabels }}
     {{- toYaml . | nindent 8 }}
     {{- end }}
 

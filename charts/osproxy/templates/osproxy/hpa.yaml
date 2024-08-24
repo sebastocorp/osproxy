@@ -1,19 +1,19 @@
-{{- if .Values.proxy.autoscaling }}
+{{- if .Values.osproxy.autoscaling }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "osproxy.fullname" . }}
   labels:
     {{- include "osproxy.labels" . | nindent 4 }}
-  {{- with .Values.proxy.autoscaling.annotations }}
+  {{- with .Values.osproxy.autoscaling.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   
 spec:
-  {{- if .Values.proxy.autoscaling.behavior }}
+  {{- if .Values.osproxy.autoscaling.behavior }}
   behavior:
-    {{- toYaml .Values.proxy.autoscaling.behavior | nindent 4 }}
+    {{- toYaml .Values.osproxy.autoscaling.behavior | nindent 4 }}
   {{- end }}
 
   # Match the generated Deployment by reference
@@ -23,7 +23,7 @@ spec:
     kind: Deployment
     name: {{ include "osproxy.fullname" . }}
 
-  {{- with .Values.proxy.autoscaling }}
+  {{- with .Values.osproxy.autoscaling }}
   minReplicas: {{ .minReplicas }}
   maxReplicas: {{ .maxReplicas }}
 

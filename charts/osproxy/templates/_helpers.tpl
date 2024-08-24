@@ -53,10 +53,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 Create the name of the service account to use in the proxy
 */}}
-{{- define "osproxy.proxy.serviceAccountName" -}}
-{{- if .Values.proxy.serviceAccount.create }}
-{{- default (printf "%s" (include "osproxy.fullname" .)) .Values.proxy.serviceAccount.name }}
+{{- define "osproxy.osproxy.serviceAccountName" -}}
+{{- if .Values.osproxy.serviceAccount.create }}
+{{- default (printf "%s" (include "osproxy.fullname" .)) .Values.osproxy.serviceAccount.name }}
 {{- else }}
-{{- default "default" .Values.proxy.serviceAccount.name }}
+{{- default "default" .Values.osproxy.serviceAccount.name }}
 {{- end }}
 {{- end }}
