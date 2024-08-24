@@ -1,0 +1,18 @@
+transferService:
+  host: "http://example.com"
+  port: "8080"
+  endpoint: "/transfer"
+osConfig:
+  s3:
+    endpoint: $OSPROXY_S3_ENDPOINT
+    accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
+    secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
+relation:
+  type: pathPrefix # pathPrefix|host
+  buckets:
+    "path/prefix/":
+      frontend:
+        bucketName: front-bucket-name
+        removePathPrefix: "path/to/remove/"
+      backend:
+        bucketName: backend-bucket-name

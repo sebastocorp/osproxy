@@ -1,0 +1,59 @@
+{{- if .Values.proxy.autoscaling }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "osproxy.fullname" . }}
+  labels:
+    {{- include "osproxy.labels" . | nindent 4 }}
+  {{- with .Values.proxy.autoscaling.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+spec:
+  {{- if .Values.proxy.autoscaling.behavior }}
+  behavior:
+    {{- toYaml .Values.proxy.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+
+  # Match the generated Deployment by reference
+  # Note: Do not use `kind: Gateway`.
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "osproxy.fullname" . }}
+
+  {{- with .Values.proxy.autoscaling }}
+  minReplicas: {{ .minReplicas }}
+  maxReplicas: {{ .maxReplicas }}
+
+  metrics:
+    # Changing the order of the metrics will cause ArgoCD
+    # to go into a sync loop memory needs to be first.
+    # More info in: https://github.com/argoproj/argo-cd/issues/1079
+    {{- with .targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+
+    {{- with .targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+
+    {{- if .customRules -}}
+      {{- toYaml .customRules | nindent 4}}
+    {{- end }}
+
+  {{- end }}
+
+---
+{{- end }}

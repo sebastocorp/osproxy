@@ -1,0 +1,32 @@
+
+{{- if .Values.proxy.disruption }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "osproxy.fullname" . }}-proxy
+  labels:
+    {{- include "osproxy.labels" . | nindent 4 }}
+  {{- with .Values.proxy.disruption.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+
+spec:
+  {{- with .Values.proxy.disruption.minAvailable }}
+  minAvailable: {{ . }}
+  {{- end }}
+
+  {{- with .Values.proxy.disruption.maxUnavailable }}
+  maxUnavailable: {{ . }}
+  {{- end }}
+
+  selector:
+    matchLabels:
+      component: osproxy
+      {{- include "osproxy.selectorLabels" . | nindent 4 }}
+      {{- with .Values.proxy.extraLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{- end }}
