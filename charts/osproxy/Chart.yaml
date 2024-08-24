@@ -1,6 +1,0 @@
-apiVersion: v2
-name: osproxy
-description: A Helm chart for Kubernetes to deploy osproxy
-
-type: application
-version: 0.1.0
