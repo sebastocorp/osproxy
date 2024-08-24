@@ -1,6 +1,20 @@
+# osproxy
 apiVersion: v2
 name: osproxy
-description: A Helm chart for Kubernetes to deploy osproxy
-
 type: application
-version: 0.1.0
+description: >-
+  A Helm chart for osproxy, HTTP proxy to serve
+  object storage files
+version: &chartVersionSpec 0.1.0 # chart version
+appVersion: *chartVersionSpec # application version
+kubeVersion: ">=1.22.0-0" # kubernetes version
+home: https://github.com/sebastocorp/osproxy
+sources:
+  - https://github.com/sebastocorp/osproxy
+keywords:
+  - osproxy
+  - kubernetes
+maintainers:
+  - name: Sebastian Vargas
+    email: sebastian.varbel@gmail.com
+    url: https://github.com/sebastocorp
