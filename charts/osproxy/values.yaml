@@ -228,13 +228,9 @@ osproxy:
     # nodePort: 30000
 
     ports:
-      - name: static
-        port: 8099
-        targetPort: 8099
-
-      - name: admin
-        port: 8001
-        targetPort: 8001
+      - name: http
+        port: 8080
+        targetPort: 8080
 
     # Extra annotations for the service definition. This can either be YAML or a
     # YAML-formatted multi-line templated string map of the annotations to apply
@@ -345,3 +341,16 @@ osproxy:
       #    for: 5m
       #    labels:
       #      severity: critical
+
+# Define some extra resources to be created
+# This section is useful when you need ExternalResource or Secrets, etc.
+extraResources: []
+  # - apiVersion: v1
+  #   kind: Secret
+  #   metadata:
+  #     name: example-secret
+  #     labels: {}
+  #   type: Opaque
+  #   stringData:
+  #     username: admin
+  #     password: mypassword
