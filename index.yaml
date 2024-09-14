@@ -2,6 +2,27 @@ apiVersion: v1
 entries:
   osproxy:
   - apiVersion: v2
+    appVersion: 0.2.0
+    created: "2024-09-14T13:35:30.606660118Z"
+    description: A Helm chart for osproxy, HTTP proxy to serve object storage files
+    digest: 51f1e0e98d3d2621495aed71cd82114d9b7151d345fd65a981791a3531abad68
+    home: https://github.com/sebastocorp/osproxy
+    keywords:
+    - osproxy
+    - kubernetes
+    kubeVersion: '>=1.22.0-0'
+    maintainers:
+    - email: sebastian.varbel@gmail.com
+      name: Sebastian Vargas
+      url: https://github.com/sebastocorp
+    name: osproxy
+    sources:
+    - https://github.com/sebastocorp/osproxy
+    type: application
+    urls:
+    - osproxy-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
     appVersion: 0.1.2
     created: "2024-09-11T08:52:53.111454262Z"
     description: A Helm chart for osproxy, HTTP proxy to serve object storage files
@@ -64,4 +85,4 @@ entries:
     urls:
     - osproxy-0.1.0.tgz
     version: 0.1.0
-generated: "2024-09-11T08:52:53.111473668Z"
+generated: "2024-09-14T13:35:30.606675637Z"
