@@ -36,6 +36,7 @@ type ObjectT struct {
 }
 
 type ObjectInfoT struct {
+	Exist       bool
 	Size        int64
 	ContentType string
 }
@@ -112,6 +113,29 @@ func (m *ManagerT) S3ObjectExist(obj ObjectT) (exist bool, info ObjectInfoT, err
 	}
 
 	return exist, info, err
+}
+
+func (m *ManagerT) S3GetObject(obj ObjectT) (object *minio.Object, info ObjectInfoT, err error) {
+	object, err = m.S3.Client.GetObject(context.Background(), obj.BucketName, obj.ObjectPath, minio.GetObjectOptions{})
+	if err != nil {
+		return object, info, err
+	}
+
+	stat, err := object.Stat()
+	if err != nil {
+		if minioErr, ok := err.(minio.ErrorResponse); ok && minioErr.Code == "NoSuchKey" {
+			err = nil
+			info.Exist = false
+		}
+
+		return object, info, err
+	}
+
+	info.Exist = true
+	info.ContentType = stat.ContentType
+	info.Size = stat.Size
+
+	return object, info, err
 }
 
 func (o *ObjectT) String() string {

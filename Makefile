@@ -1,6 +1,9 @@
-BYNARY ?= osproxy
+BINARY ?= osproxy
+
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/sebastocorp/$(BINARY):latest
+IMG_NAME ?= osproxy
+IMG_TAG ?= latest
+IMG ?= ghcr.io/sebastocorp/$(IMG_NAME):$(IMG_TAG)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -82,8 +85,8 @@ check-go-target: ## Check presente of GOOS and GOARCH vars.
 	fi
 
 .PHONY: build
-build: fmt vet check-go-target ## Build CLI binary.
-	go build -o bin/$(BINARY)-$(GOOS)-$(GOARCH) cmd/main.go
+build: fmt vet ## Build CLI binary.
+	go build -o bin/$(BINARY) cmd/main.go
 
 .PHONY: run
 run: fmt vet ## Run a controller from your host.

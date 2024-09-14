@@ -9,10 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-
-)
-
+const ()
 
 func getFlags(cmd *cobra.Command) (flags serveFlagsT, err error) {
 

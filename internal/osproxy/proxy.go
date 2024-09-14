@@ -10,8 +10,6 @@ import (
 	"osproxy/api/v1alpha1"
 	"osproxy/internal/logger"
 	"osproxy/internal/objectStorage"
-
-	"github.com/minio/minio-go/v7"
 )
 
 type OSProxyT struct {
@@ -41,9 +39,12 @@ func NewOSProxy(config string) (osp OSProxyT, err error) {
 
 func (osp *OSProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	var err error
+	statusCode := http.StatusInternalServerError
 	defer func() {
 		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		} else if statusCode == http.StatusNotFound {
+			http.Error(w, "not found", statusCode)
 		}
 	}()
 
@@ -53,33 +54,27 @@ func (osp *OSProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		logger.Log.Errorf("unable to process request '%s': %s", r.URL.Path, err.Error())
 		return
 	}
-	_ = bObject
 
-	logger.Log.Infof("check object '%s'", fObject.String())
-	exist, info, err := osp.objManager.S3ObjectExist(fObject)
+	logger.Log.Infof("get object '%s'", fObject.String())
+	object, info, err := osp.objManager.S3GetObject(fObject)
 	if err != nil {
-		logger.Log.Errorf("unable to check object %s: %s", fObject.String(), err.Error())
-		return
-	}
-
-	if !exist {
-		logger.Log.Errorf("object %s not exist, making transfer request", fObject.String())
-		err = osp.makeAPICall(fObject, bObject)
-		if err != nil {
-			logger.Log.Errorf("unable to request transfer %s to %s: %s",
-				bObject.String(), fObject.String(), err.Error())
-		}
-		err = fmt.Errorf("object NOT exist")
-		return
-	}
-
-	logger.Log.Infof("get object %s", fObject.String())
-	object, err := osp.objManager.S3.Client.GetObject(osp.objManager.Ctx, fObject.BucketName, fObject.ObjectPath, minio.GetObjectOptions{})
-	if err != nil {
-		logger.Log.Errorf("unable get object '%s': %s", fObject.String(), err.Error())
+		logger.Log.Errorf("unable to get object %s: %s", fObject.String(), err.Error())
 		return
 	}
 	defer object.Close()
+
+	if !info.Exist {
+		statusCode = http.StatusNotFound
+
+		logger.Log.Errorf("object %s not exist, making transfer request", fObject.String())
+		err = osp.makeAPICall(fObject, bObject)
+		if err != nil {
+			logger.Log.Errorf("unable to make transfer request from %s to %s: %s",
+				bObject.String(), fObject.String(), err.Error())
+			err = nil
+		}
+		return
+	}
 
 	// Set headers before response body
 	w.Header().Set("Content-Type", info.ContentType)

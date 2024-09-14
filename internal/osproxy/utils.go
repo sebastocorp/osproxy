@@ -11,6 +11,11 @@ import (
 	"osproxy/internal/objectStorage"
 	"osproxy/internal/utils"
 	"strings"
+	"time"
+)
+
+const (
+	defaultRelationKey = "osproxy-default-relation"
 )
 
 func (osp *OSProxyT) parseConfig(filepath string) (err error) {
@@ -22,6 +27,20 @@ func (osp *OSProxyT) parseConfig(filepath string) (err error) {
 	configBytes = []byte(os.ExpandEnv(string(configBytes)))
 
 	osp.config, err = config.Parse(configBytes)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := osp.config.Relation.Buckets[defaultRelationKey]; !ok {
+		osp.config.Relation.Buckets[defaultRelationKey] = v1alpha1.FrontBackBucketsT{
+			Frontend: v1alpha1.BucketSubpathT{
+				BucketName: "bucket-frontend-placeholder",
+			},
+			Backend: v1alpha1.BucketSubpathT{
+				BucketName: "bucket-backend-placeholder",
+			},
+		}
+	}
 
 	return err
 }
@@ -48,6 +67,10 @@ func (osp *OSProxyT) processRequest(r *http.Request) (fObject, bObject objectSto
 				fObject, bObject = osp.setFrontBackBuckets(originalObjectPath, fbBuckets)
 				break
 			}
+		}
+
+		if fObject.BucketName == "" || bObject.BucketName == "" {
+			fObject, bObject = osp.setFrontBackBuckets(originalObjectPath, osp.config.Relation.Buckets[defaultRelationKey])
 		}
 	}
 
@@ -100,6 +123,8 @@ func (osp *OSProxyT) makeAPICall(fObject, bObject objectStorage.ObjectT) (err er
 	if err != nil {
 		return err
 	}
+
+	http.DefaultClient.Timeout = 300 * time.Millisecond
 
 	requestURL := fmt.Sprintf("%s:%s%s",
 		osp.config.TransferService.Host,
