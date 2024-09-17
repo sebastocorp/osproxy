@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"osproxy/api/v1alpha1"
-	"osproxy/internal/config"
-	"osproxy/internal/objectStorage"
-	"osproxy/internal/utils"
 	"strings"
 	"time"
+
+	"osproxy/api/v1alpha2"
+	"osproxy/internal/objectStorage"
+	"osproxy/internal/utils"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -26,17 +28,17 @@ func (osp *OSProxyT) parseConfig(filepath string) (err error) {
 
 	configBytes = []byte(os.ExpandEnv(string(configBytes)))
 
-	osp.config, err = config.Parse(configBytes)
+	err = yaml.Unmarshal(configBytes, &osp.Config)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := osp.config.Relation.Buckets[defaultRelationKey]; !ok {
-		osp.config.Relation.Buckets[defaultRelationKey] = v1alpha1.FrontBackBucketsT{
-			Frontend: v1alpha1.BucketSubpathT{
+	if _, ok := osp.Config.ObjectStorage.Relation.Buckets[defaultRelationKey]; !ok {
+		osp.Config.ObjectStorage.Relation.Buckets[defaultRelationKey] = v1alpha2.FrontBackBucketsT{
+			Frontend: v1alpha2.BucketSubpathT{
 				BucketName: "bucket-frontend-placeholder",
 			},
-			Backend: v1alpha1.BucketSubpathT{
+			Backend: v1alpha2.BucketSubpathT{
 				BucketName: "bucket-backend-placeholder",
 			},
 		}
@@ -51,8 +53,8 @@ func (osp *OSProxyT) processRequest(r *http.Request) (fObject, bObject objectSto
 	// Get object path
 	originalObjectPath := strings.TrimPrefix(req.Path, "/")
 
-	if osp.config.Relation.Type == "host" {
-		hostBucketRelation, ok := osp.config.Relation.Buckets[req.Host]
+	if osp.Config.ObjectStorage.Relation.Type == "host" {
+		hostBucketRelation, ok := osp.Config.ObjectStorage.Relation.Buckets[req.Host]
 		if !ok {
 			err = fmt.Errorf("host relation config not provided for '%s' host", req.Host)
 			return fObject, bObject, req, err
@@ -61,8 +63,8 @@ func (osp *OSProxyT) processRequest(r *http.Request) (fObject, bObject objectSto
 		fObject, bObject = osp.setFrontBackBuckets(originalObjectPath, hostBucketRelation)
 	}
 
-	if osp.config.Relation.Type == "pathPrefix" {
-		for prefix, fbBuckets := range osp.config.Relation.Buckets {
+	if osp.Config.ObjectStorage.Relation.Type == "pathPrefix" {
+		for prefix, fbBuckets := range osp.Config.ObjectStorage.Relation.Buckets {
 			if strings.HasPrefix(originalObjectPath, prefix) {
 				fObject, bObject = osp.setFrontBackBuckets(originalObjectPath, fbBuckets)
 				break
@@ -70,14 +72,14 @@ func (osp *OSProxyT) processRequest(r *http.Request) (fObject, bObject objectSto
 		}
 
 		if fObject.BucketName == "" || bObject.BucketName == "" {
-			fObject, bObject = osp.setFrontBackBuckets(originalObjectPath, osp.config.Relation.Buckets[defaultRelationKey])
+			fObject, bObject = osp.setFrontBackBuckets(originalObjectPath, osp.Config.ObjectStorage.Relation.Buckets[defaultRelationKey])
 		}
 	}
 
 	return fObject, bObject, req, err
 }
 
-func (osp *OSProxyT) setFrontBackBuckets(objectPath string, fbBuckets v1alpha1.FrontBackBucketsT) (fObject, bObject objectStorage.ObjectT) {
+func (osp *OSProxyT) setFrontBackBuckets(objectPath string, fbBuckets v1alpha2.FrontBackBucketsT) (fObject, bObject objectStorage.ObjectT) {
 	fObject = objectStorage.ObjectT{
 		BucketName: fbBuckets.Frontend.BucketName,
 		ObjectPath: objectPath,
@@ -109,32 +111,22 @@ func (osp *OSProxyT) makeAPICall(fObject, bObject objectStorage.ObjectT) (err er
 		To   objectStorage.ObjectT `json:"to"`
 	}
 
-	type apiTransferRequestT struct {
-		Transfer TransferT `json:"transfer"`
+	transfer := TransferT{
+		From: bObject,
+		To:   fObject,
 	}
 
-	body := apiTransferRequestT{
-		Transfer: TransferT{
-			From: bObject,
-			To:   fObject,
-		},
-	}
-	bodyBytes, err := json.Marshal(body)
+	bodyBytes, err := json.Marshal(transfer)
 	if err != nil {
 		return err
 	}
 
-	http.DefaultClient.Timeout = 300 * time.Millisecond
-
-	requestURL := fmt.Sprintf("%s:%s%s",
-		osp.config.TransferService.Host,
-		osp.config.TransferService.Port,
-		osp.config.TransferService.Endpoint,
-	)
-	_, err = http.Post(requestURL, "application/json", bytes.NewBuffer(bodyBytes))
+	http.DefaultClient.Timeout = 100 * time.Millisecond
+	resp, err := http.Post(osp.Config.Action.APICall.URL, "application/json", bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return err
 	}
+	resp.Body.Close()
 
 	return err
 }

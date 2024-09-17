@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -23,8 +24,7 @@ const (
 )
 
 type serveFlagsT struct {
-	logLevel string
-
+	logLevel   string
 	configFile string
 }
 
@@ -54,17 +54,18 @@ func RunCommand(cmd *cobra.Command, args []string) {
 		logger.Log.Fatalf("unable to parse daemon command flags")
 	}
 
-	_ = flags
-
 	/////////////////////////////
 	// EXECUTION FLOW RELATED
 	/////////////////////////////
-	osProxy, err := osproxy.NewOSProxy(flags.configFile)
+	osproxy, err := osproxy.NewOSProxy(flags.configFile)
 	if err != nil {
 		logger.Log.Fatalf("unable init osproxy: %s", err.Error())
 	}
 
 	// Iniciar el servidor proxy
 	logger.Log.Infof("init osproxy")
-	log.Fatal(http.ListenAndServe(":8080", http.HandlerFunc(osProxy.HandleFunc)))
+	log.Fatal(http.ListenAndServe(
+		fmt.Sprintf("%s:%s", osproxy.Config.Proxy.Address, osproxy.Config.Proxy.Port),
+		http.HandlerFunc(osproxy.HandleFunc),
+	))
 }

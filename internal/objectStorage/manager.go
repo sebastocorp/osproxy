@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"osproxy/api/v1alpha2"
+
 	"cloud.google.com/go/storage"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -12,111 +14,48 @@ import (
 )
 
 type ManagerT struct {
-	Ctx context.Context
-	S3  S3T
-	GCS GCST
-}
-
-type S3T struct {
-	Client          *minio.Client
-	Endpoint        string
-	AccessKeyID     string
-	SecretAccessKey string
-}
-
-type GCST struct {
-	Client          *storage.Client
-	CredentialsFile string
+	Ctx       context.Context
+	S3Client  *minio.Client
+	GCSClient *storage.Client
 }
 
 type ObjectT struct {
-	BucketName string `json:"bucket"`
-	ObjectPath string `json:"path"`
-	Etag       string `json:"etag"`
+	BucketName string      `json:"bucket"`
+	ObjectPath string      `json:"path"`
+	Info       ObjectInfoT `json:"-"`
 }
 
 type ObjectInfoT struct {
 	Exist       bool
+	MD5         string
 	Size        int64
 	ContentType string
 }
 
-func NewManager(ctx context.Context, s3 S3T, gcs GCST) (man ManagerT, err error) {
-	s3ConfigEmpty := reflect.ValueOf(s3).IsZero()
-	gcsConfigEmpty := reflect.ValueOf(gcs).IsZero()
-	if s3ConfigEmpty && gcsConfigEmpty {
-		err = fmt.Errorf("both s3 and gcs config are empty")
+func NewManager(ctx context.Context, s3 v1alpha2.S3T, gcs v1alpha2.GCST) (man ManagerT, err error) {
+	man.Ctx = ctx
+
+	man.S3Client, err = minio.New(
+		s3.Endpoint,
+		&minio.Options{
+			Creds:  credentials.NewStaticV4(s3.AccessKeyID, s3.SecretAccessKey, ""),
+			Region: s3.Region,
+			Secure: s3.Secure,
+		},
+	)
+	if err != nil {
 		return man, err
 	}
 
-	man.Ctx = ctx
-
-	if !s3ConfigEmpty {
-		man.S3 = s3
-		man.S3.Client, err = minio.New(
-			man.S3.Endpoint,
-			&minio.Options{
-				Creds:  credentials.NewStaticV4(man.S3.AccessKeyID, man.S3.SecretAccessKey, ""),
-				Secure: true,
-			},
-		)
-		if err != nil {
-			return man, err
-		}
-	}
-
-	if !gcsConfigEmpty {
-		man.GCS.CredentialsFile = gcs.CredentialsFile
-		man.GCS.Client, err = storage.NewClient(man.Ctx, option.WithCredentialsFile(man.GCS.CredentialsFile))
+	if reflect.ValueOf(s3).IsZero() {
+		man.GCSClient, err = storage.NewClient(man.Ctx, option.WithCredentialsFile(gcs.CredentialsFile))
 	}
 
 	return man, err
 }
 
-func (m *ManagerT) GCSObjectExist(obj ObjectT) (exist bool, info ObjectInfoT, err error) {
-	exist = true
-	stat, err := m.GCS.Client.Bucket(obj.BucketName).Object(obj.ObjectPath).Attrs(m.Ctx)
-	if err != nil {
-		if err != storage.ErrObjectNotExist {
-			return exist, info, err
-		}
-		err = nil
-		exist = false
-	}
-
-	if exist {
-		info = ObjectInfoT{
-			Size:        stat.Size,
-			ContentType: stat.ContentType,
-		}
-	}
-
-	return exist, info, err
-}
-
-func (m *ManagerT) S3ObjectExist(obj ObjectT) (exist bool, info ObjectInfoT, err error) {
-	exist = true
-	stat, err := m.S3.Client.StatObject(m.Ctx, obj.BucketName, obj.ObjectPath, minio.GetObjectOptions{})
-	if err != nil {
-		if minio.ToErrorResponse(err).Code != "NoSuchKey" {
-			return exist, info, err
-		}
-		err = nil
-		exist = false
-	}
-
-	if exist {
-		info = ObjectInfoT{
-			Size:        stat.Size,
-			ContentType: stat.ContentType,
-		}
-	}
-
-	return exist, info, err
-}
-
 func (m *ManagerT) S3GetObject(obj ObjectT) (object *minio.Object, info ObjectInfoT, err error) {
-	object, err = m.S3.Client.GetObject(context.Background(), obj.BucketName, obj.ObjectPath, minio.GetObjectOptions{})
+	object, err = m.S3Client.GetObject(context.Background(), obj.BucketName, obj.ObjectPath, minio.GetObjectOptions{})
 	if err != nil {
 		return object, info, err
 	}
@@ -127,11 +66,11 @@ func (m *ManagerT) S3GetObject(obj ObjectT) (object *minio.Object, info ObjectIn
 			err = nil
 			info.Exist = false
 		}
-
 		return object, info, err
 	}
 
 	info.Exist = true
+	info.MD5 = stat.ETag
 	info.ContentType = stat.ContentType
 	info.Size = stat.Size
 

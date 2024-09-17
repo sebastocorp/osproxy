@@ -1,0 +1,23 @@
+proxy:
+  address: ""
+  port: "8080"
+action:
+  statusCode: 404
+  apiCall:
+    url: "example.com:8080/transfer"
+objectStorage:
+  s3:
+    endpoint: $OSPROXY_S3_ENDPOINT
+    accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
+    secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
+    region: $OSPROXY_S3_REGION
+    secure: true
+  relation:
+    type: pathPrefix # pathPrefix|host
+    buckets:
+      "path/prefix/":
+        frontend:
+          bucketName: front-bucket-name
+          removePathPrefix: "path/to/remove/"
+        backend:
+          bucketName: backend-bucket-name

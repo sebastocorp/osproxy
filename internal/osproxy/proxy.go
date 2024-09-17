@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"osproxy/api/v1alpha1"
+	"osproxy/api/v1alpha2"
 	"osproxy/internal/logger"
 	"osproxy/internal/objectStorage"
 )
 
 type OSProxyT struct {
-	config     v1alpha1.OSProxyConfigT
+	Config     v1alpha2.OSProxyConfigT
 	objManager objectStorage.ManagerT
 }
 
@@ -24,14 +24,8 @@ func NewOSProxy(config string) (osp OSProxyT, err error) {
 	}
 
 	osp.objManager, err = objectStorage.NewManager(context.Background(),
-		objectStorage.S3T{
-			Endpoint:        osp.config.OSConfig.S3.Endpoint,
-			AccessKeyID:     osp.config.OSConfig.S3.AccessKeyID,
-			SecretAccessKey: osp.config.OSConfig.S3.SecretAccessKey,
-		},
-		objectStorage.GCST{
-			CredentialsFile: osp.config.OSConfig.GCS.CredentialsFile,
-		},
+		osp.Config.ObjectStorage.S3,
+		osp.Config.ObjectStorage.GCS,
 	)
 
 	return osp, err
@@ -66,7 +60,7 @@ func (osp *OSProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	if !info.Exist {
 		statusCode = http.StatusNotFound
 
-		logger.Log.Errorf("object %s not exist, making transfer request", fObject.String())
+		logger.Log.Errorf("object %s not exist, making actions", fObject.String())
 		err = osp.makeAPICall(fObject, bObject)
 		if err != nil {
 			logger.Log.Errorf("unable to make transfer request from %s to %s: %s",
@@ -83,6 +77,8 @@ func (osp *OSProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		contentDispositionHeaderVal := fmt.Sprintf("inline; filename=\"%s\"", filename)
 		w.Header().Set("Content-Disposition", contentDispositionHeaderVal)
 	}
+
+	w.WriteHeader(http.StatusOK)
 
 	// Copy object data in response body
 	if _, err := io.Copy(w, object); err != nil {
