@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,12 +122,23 @@ func (osp *OSProxyT) makeAPICall(fObject, bObject objectStorage.ObjectT) (err er
 		return err
 	}
 
-	http.DefaultClient.Timeout = 100 * time.Millisecond
+	http.DefaultClient.Timeout = 200 * time.Millisecond
 	resp, err := http.Post(osp.Config.Action.APICall.URL, "application/json", bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 
 	return err
+}
+
+func writeDirectResponse(w http.ResponseWriter, statusCode int, message string) {
+
+	message = fmt.Sprintf("%d %s\n", statusCode, message)
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Length", strconv.Itoa(len(message)))
+
+	w.WriteHeader(statusCode)
+	w.Write([]byte(message))
 }

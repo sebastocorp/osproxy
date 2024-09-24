@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 )
 
 // ----------------------------------------------------------------
@@ -54,43 +55,48 @@ func GetLevel(levelStr string) (l LevelT, err error) {
 	return l, err
 }
 
-func (l *LoggerT) Debugf(format string, args ...any) {
+func (l *LoggerT) Debugf(extra []any, format string, args ...any) {
+	extra = slices.Concat(l.ExtraAttr, extra)
 	if l.Context != nil {
-		l.SLogger.DebugContext(l.Context, fmt.Sprintf(format, args...), l.ExtraAttr...)
+		l.SLogger.DebugContext(l.Context, fmt.Sprintf(format, args...), extra...)
 		return
 	}
-	l.SLogger.Debug(fmt.Sprintf(format, args...), l.ExtraAttr...)
+	l.SLogger.Debug(fmt.Sprintf(format, args...), extra...)
 }
 
-func (l *LoggerT) Infof(format string, args ...any) {
+func (l *LoggerT) Infof(extra []any, format string, args ...any) {
+	extra = slices.Concat(l.ExtraAttr, extra)
 	if l.Context != nil {
-		l.SLogger.InfoContext(l.Context, fmt.Sprintf(format, args...), l.ExtraAttr...)
+		l.SLogger.InfoContext(l.Context, fmt.Sprintf(format, args...), extra...)
 		return
 	}
-	l.SLogger.Info(fmt.Sprintf(format, args...), l.ExtraAttr...)
+	l.SLogger.Info(fmt.Sprintf(format, args...), extra...)
 }
 
-func (l *LoggerT) Warnf(format string, args ...any) {
+func (l *LoggerT) Warnf(extra []any, format string, args ...any) {
+	extra = slices.Concat(l.ExtraAttr, extra)
 	if l.Context != nil {
-		l.SLogger.WarnContext(l.Context, fmt.Sprintf(format, args...), l.ExtraAttr...)
+		l.SLogger.WarnContext(l.Context, fmt.Sprintf(format, args...), extra...)
 		return
 	}
-	l.SLogger.Warn(fmt.Sprintf(format, args...), l.ExtraAttr...)
+	l.SLogger.Warn(fmt.Sprintf(format, args...), extra...)
 }
 
-func (l *LoggerT) Errorf(format string, args ...any) {
+func (l *LoggerT) Errorf(extra []any, format string, args ...any) {
+	extra = slices.Concat(l.ExtraAttr, extra)
 	if l.Context != nil {
-		l.SLogger.ErrorContext(l.Context, fmt.Sprintf(format, args...), l.ExtraAttr...)
+		l.SLogger.ErrorContext(l.Context, fmt.Sprintf(format, args...), extra...)
 		return
 	}
-	l.SLogger.Error(fmt.Sprintf(format, args...), l.ExtraAttr...)
+	l.SLogger.Error(fmt.Sprintf(format, args...), extra...)
 }
 
-func (l *LoggerT) Fatalf(format string, args ...any) {
+func (l *LoggerT) Fatalf(extra []any, format string, args ...any) {
+	extra = slices.Concat(l.ExtraAttr, extra)
 	if l.Context != nil {
-		l.SLogger.ErrorContext(l.Context, fmt.Sprintf(format, args...), l.ExtraAttr...)
+		l.SLogger.ErrorContext(l.Context, fmt.Sprintf(format, args...), extra...)
 		os.Exit(1)
 	}
-	l.SLogger.Error(fmt.Sprintf(format, args...), l.ExtraAttr...)
+	l.SLogger.Error(fmt.Sprintf(format, args...), extra...)
 	os.Exit(1)
 }

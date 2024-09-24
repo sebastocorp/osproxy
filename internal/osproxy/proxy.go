@@ -33,42 +33,50 @@ func NewOSProxy(config string) (osp OSProxyT, err error) {
 
 func (osp *OSProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	var err error
-	statusCode := http.StatusInternalServerError
 	defer func() {
 		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		} else if statusCode == http.StatusNotFound {
-			http.Error(w, "not found", statusCode)
+			writeDirectResponse(w, http.StatusInternalServerError, "Internal Server Error")
 		}
 	}()
 
-	logger.Log.Infof("handle request '%s'", r.URL.Path)
 	fObject, bObject, req, err := osp.processRequest(r)
 	if err != nil {
-		logger.Log.Errorf("unable to process request '%s': %s", r.URL.Path, err.Error())
+		logger.Log.Errorf([]any{"status_code", http.StatusInternalServerError}, "unable to process request '%s': %s", r.URL.Path, err.Error())
 		return
 	}
+	extra := []any{
+		"request", req.String(),
+		"object", fObject.String(),
+		"backend_object", bObject.String(),
+	}
+	logger.Log.Infof(extra, "handle request")
 
-	logger.Log.Infof("get object '%s'", fObject.String())
+	logger.Log.Infof(extra, "get object")
 	object, info, err := osp.objManager.S3GetObject(fObject)
 	if err != nil {
-		logger.Log.Errorf("unable to get object %s: %s", fObject.String(), err.Error())
+		extra = append(extra, "error", err.Error(), "status_code", http.StatusInternalServerError)
+		logger.Log.Errorf(extra, "unable to get object")
 		return
 	}
 	defer object.Close()
 
 	if !info.Exist {
-		statusCode = http.StatusNotFound
+		writeDirectResponse(w, http.StatusNotFound, "Not Found")
+		extra = append(extra, "status_code", http.StatusNotFound)
 
-		logger.Log.Errorf("object %s not exist, making actions", fObject.String())
+		logger.Log.Errorf(extra, "object not exist, making actions")
 		err = osp.makeAPICall(fObject, bObject)
 		if err != nil {
-			logger.Log.Errorf("unable to make transfer request from %s to %s: %s",
-				bObject.String(), fObject.String(), err.Error())
+			extraActions := append(extra, "error", err.Error())
+			logger.Log.Errorf(extraActions, "unable to execute actions")
 			err = nil
+		} else {
+			logger.Log.Infof(extra, "success executing actions")
 		}
 		return
 	}
+
+	extra = append(extra, "status_code", http.StatusOK)
 
 	// Set headers before response body
 	w.Header().Set("Content-Type", info.ContentType)
@@ -81,7 +89,10 @@ func (osp *OSProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// Copy object data in response body
-	if _, err := io.Copy(w, object); err != nil {
-		logger.Log.Errorf("unable to set object %s in response body: %s", fObject.String(), err.Error())
+	if _, dataErr := io.Copy(w, object); dataErr != nil {
+		extra = append(extra, "error", err.Error())
+		logger.Log.Errorf(extra, "unable to set data in response body")
+	} else {
+		logger.Log.Infof(extra, "success handling request")
 	}
 }

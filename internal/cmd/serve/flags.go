@@ -22,13 +22,13 @@ func getFlags(cmd *cobra.Command) (flags serveFlagsT, err error) {
 		log.Fatalf(logLevelFlagErrMsg, err.Error())
 	}
 
-	logger.InitLogger(context.Background(), level)
+	logger.InitLogger(context.Background(), level, "service", "osproxy")
 
 	// Get server command flags
 
 	flags.configFile, err = cmd.Flags().GetString(configFileFlagName)
 	if err != nil {
-		logger.Log.Fatalf(configFileFlagErrMsg, err.Error())
+		logger.Log.Fatalf([]any{}, configFileFlagErrMsg, err.Error())
 	}
 
 	return flags, err

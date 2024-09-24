@@ -51,7 +51,7 @@ func NewCommand() *cobra.Command {
 func RunCommand(cmd *cobra.Command, args []string) {
 	flags, err := getFlags(cmd)
 	if err != nil {
-		logger.Log.Fatalf("unable to parse daemon command flags")
+		logger.Log.Fatalf([]any{}, "unable to parse command flags")
 	}
 
 	/////////////////////////////
@@ -59,11 +59,11 @@ func RunCommand(cmd *cobra.Command, args []string) {
 	/////////////////////////////
 	osproxy, err := osproxy.NewOSProxy(flags.configFile)
 	if err != nil {
-		logger.Log.Fatalf("unable init osproxy: %s", err.Error())
+		logger.Log.Fatalf([]any{}, "unable init osproxy: %s", err.Error())
 	}
 
 	// Iniciar el servidor proxy
-	logger.Log.Infof("init osproxy")
+	logger.Log.Infof([]any{}, "init osproxy")
 	log.Fatal(http.ListenAndServe(
 		fmt.Sprintf("%s:%s", osproxy.Config.Proxy.Address, osproxy.Config.Proxy.Port),
 		http.HandlerFunc(osproxy.HandleFunc),
