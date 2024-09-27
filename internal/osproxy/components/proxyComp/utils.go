@@ -16,5 +16,5 @@ func (p *ProxyT) requestResponseErrorLog(respWriter http.ResponseWriter, respSta
 	respWriter.Write([]byte(respMessage))
 
 	// log request
-	p.Log.Error(logMessage, logExtraFields)
+	p.log.Error(logMessage, logExtraFields)
 }

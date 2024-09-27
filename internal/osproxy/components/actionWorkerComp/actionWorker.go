@@ -2,43 +2,54 @@ package actionWorkerComp
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"osproxy/api/v1alpha3"
 	"osproxy/internal/logger"
+	"osproxy/internal/objectStorage"
 	"osproxy/internal/pools"
 )
 
 const (
-	logExtraFieldKeyRequest       = "request"
-	logExtraFieldKeyObject        = "object"
-	logExtraFieldKeyBackendObject = "object_backend"
-	logExtraFieldKeyError         = "error"
+	logExtraFieldKeyObject     = "object"
+	logExtraFieldKeyActionType = "action_type"
+	logExtraFieldKeyError      = "error"
+
+	actionTypeRequest = "request"
 )
 
 type ActionWorkerT struct {
-	Config v1alpha3.ActionWorkerConfigT
+	config v1alpha3.ActionWorkerConfigT
+	log    logger.LoggerT
 
-	Log logger.LoggerT
-
-	actionPool *pools.ActionPoolT
+	actionPool  *pools.ActionPoolT
+	actionFuncs map[string]func(objectStorage.ObjectT) error
 }
 
 func NewActionWorker(config v1alpha3.ActionWorkerConfigT, actionPool *pools.ActionPoolT) (aw ActionWorkerT, err error) {
-	aw.Config = config
+	aw.config = config
 	aw.actionPool = actionPool
 
-	level, err := logger.GetLevel(aw.Config.Loglevel)
+	level, err := logger.GetLevel(aw.config.Loglevel)
 	if err != nil {
 		log.Fatalf("unable to get log level in action worker config: %s", err.Error())
 	}
 
-	aw.Log = logger.NewLogger(context.Background(), level, map[string]any{
+	aw.log = logger.NewLogger(context.Background(), level, map[string]any{
 		"service":   "osproxy",
 		"component": "actionWorker",
 	})
+
+	aw.actionFuncs = map[string]func(objectStorage.ObjectT) error{
+		actionTypeRequest: aw.makeRequestAction,
+	}
+
+	if _, ok := aw.actionFuncs[aw.config.Type]; !ok {
+		err = fmt.Errorf("action worker type not suported")
+	}
 
 	return aw, err
 }
@@ -47,36 +58,30 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	logExtraFields := map[string]any{
-		logExtraFieldKeyRequest: "none",
-		logExtraFieldKeyObject:  "none",
-		logExtraFieldKeyError:   "none",
+		logExtraFieldKeyObject:     "none",
+		logExtraFieldKeyError:      "none",
+		logExtraFieldKeyActionType: a.config.Type,
 	}
 
 	for {
-
 		pool := a.actionPool.Get()
 
 		for k, v := range pool {
-			logExtraFields[logExtraFieldKeyRequest] = v.Request.String()
 			logExtraFields[logExtraFieldKeyObject] = v.Object.String()
 
 			a.actionPool.Remove(k)
 
-			backendObject, err := v.Request.GetObjectFromSource(a.Config.Source)
+			err := a.actionFuncs[a.config.Type](v.Object)
 			if err != nil {
 				logExtraFields[logExtraFieldKeyError] = err.Error()
-				a.Log.Error("unable to get object from source config", logExtraFields)
+				a.log.Error("unable make action", logExtraFields)
+				continue
 			}
-			logExtraFields[logExtraFieldKeyBackendObject] = backendObject.String()
 
-			err = a.makeAPICall(v.Object, backendObject)
-			if err != nil {
-				logExtraFields[logExtraFieldKeyError] = err.Error()
-				a.Log.Error("unable make api call", logExtraFields)
-			}
+			a.log.Debug("success in make action", logExtraFields)
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(a.config.ScrapeInterval)
 	}
 
 }

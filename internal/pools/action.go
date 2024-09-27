@@ -7,18 +7,15 @@ import (
 	"sync"
 
 	"osproxy/internal/objectStorage"
-	"osproxy/internal/utils"
 )
 
 type ActionPoolT struct {
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	requests map[string]ActionPoolRequestT
 }
 
 type ActionPoolRequestT struct {
-	Type    string
-	Request utils.RequestT
-	Object  objectStorage.ObjectT
+	Object objectStorage.ObjectT
 }
 
 func NewActionPool() (p *ActionPoolT) {
@@ -32,9 +29,9 @@ func NewActionPool() (p *ActionPoolT) {
 func (p *ActionPoolT) Get() map[string]ActionPoolRequestT {
 	result := map[string]ActionPoolRequestT{}
 
-	p.mu.Lock()
+	p.mu.RLock()
 	maps.Copy(result, p.requests)
-	p.mu.Unlock()
+	p.mu.RUnlock()
 
 	return result
 }

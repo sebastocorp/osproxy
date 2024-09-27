@@ -1,5 +1,7 @@
 package v1alpha3
 
+import "time"
+
 type OSProxyConfigT struct {
 	Proxy        ProxyConfigT        `yaml:"proxy"`
 	ActionWorker ActionWorkerConfigT `yaml:"actionWorker"`
@@ -21,19 +23,15 @@ type ProxyConfigT struct {
 //--------------------------------------------------------------
 
 type ActionWorkerConfigT struct {
-	Loglevel   string         `yaml:"loglevel"`
-	StatusCode int            `yaml:"statusCode"`
-	APICall    APICallConfigT `yaml:"apiCall"`
-	Source     SourceConfigT  `yaml:"source"`
+	Loglevel       string         `yaml:"loglevel"`
+	Type           string         `yaml:"type"`
+	ScrapeInterval time.Duration  `yaml:"scrapeInterval"`
+	Request        RequestConfigT `yaml:"request"`
 }
 
-type APICallConfigT struct {
+type RequestConfigT struct {
 	URL string `yaml:"url"`
 }
-
-//--------------------------------------------------------------
-// COMMON CONFIG
-//--------------------------------------------------------------
 
 //--------------------------------------------------------------
 // SOURCE STORAGE CONFIG
