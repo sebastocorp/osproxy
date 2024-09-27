@@ -6,7 +6,6 @@ import (
 	"osproxy/api/v1alpha3"
 	"osproxy/internal/utils"
 
-	"github.com/alecthomas/repr"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,8 +21,6 @@ func parseConfig(filepath string) (config v1alpha3.OSProxyConfigT, err error) {
 	if err != nil {
 		return config, err
 	}
-
-	repr.Println(config)
 
 	if _, ok := config.Proxy.Source.Buckets[utils.DefaultSourceKey]; !ok {
 		config.Proxy.Source.Buckets[utils.DefaultSourceKey] = v1alpha3.BucketObjectConfigT{

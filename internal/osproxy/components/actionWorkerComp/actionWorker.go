@@ -66,12 +66,11 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 	for {
 		pool := a.actionPool.Get()
 
-		for k, v := range pool {
-			logExtraFields[logExtraFieldKeyObject] = v.Object.String()
+		for key, request := range pool {
+			a.actionPool.Remove(key)
 
-			a.actionPool.Remove(k)
-
-			err := a.actionFuncs[a.config.Type](v.Object)
+			logExtraFields[logExtraFieldKeyObject] = request.Object.String()
+			err := a.actionFuncs[a.config.Type](request.Object)
 			if err != nil {
 				logExtraFields[logExtraFieldKeyError] = err.Error()
 				a.log.Error("unable make action", logExtraFields)

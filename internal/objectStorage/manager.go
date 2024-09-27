@@ -2,6 +2,8 @@ package objectStorage
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 
@@ -26,10 +28,10 @@ type ObjectT struct {
 }
 
 type ObjectInfoT struct {
-	Exist       bool
-	MD5         string
-	Size        int64
-	ContentType string
+	NotExistError bool
+	MD5           string
+	Size          int64
+	ContentType   string
 }
 
 func NewManager(ctx context.Context, config v1alpha3.ObjectStorageConfigT) (man ManagerT, err error) {
@@ -63,13 +65,12 @@ func (m *ManagerT) S3GetObject(obj ObjectT) (object *minio.Object, info ObjectIn
 	stat, err := object.Stat()
 	if err != nil {
 		if minioErr, ok := err.(minio.ErrorResponse); ok && minioErr.Code == "NoSuchKey" {
-			err = nil
-			info.Exist = false
+			info.NotExistError = true
 		}
 		return object, info, err
 	}
 
-	info.Exist = true
+	info.NotExistError = false
 	info.MD5 = stat.ETag
 	info.ContentType = stat.ContentType
 	info.Size = stat.Size
@@ -79,4 +80,8 @@ func (m *ManagerT) S3GetObject(obj ObjectT) (object *minio.Object, info ObjectIn
 
 func (o *ObjectT) String() string {
 	return fmt.Sprintf("{bucket: '%s', object: '%s'}", o.Bucket, o.Path)
+}
+
+func (o *ObjectT) StructHash() string {
+	return hex.EncodeToString(md5.New().Sum([]byte(o.String())))
 }

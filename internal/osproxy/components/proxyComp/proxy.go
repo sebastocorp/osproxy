@@ -102,6 +102,17 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	objectResp, info, err := p.objManager.S3GetObject(object)
 	if err != nil {
 		logExtraFields[logExtraFieldKeyError] = err.Error()
+		if info.NotExistError {
+			logExtraFields[logExtraFieldKeyStatusCode] = http.StatusNotFound
+			p.requestResponseErrorLog(w, http.StatusNotFound, "Not Found", "unable to handle request", logExtraFields)
+
+			p.actionPool.Add(pools.ActionPoolRequestT{
+				Object: object,
+			})
+			p.log.Debug("action in pool added", logExtraFields)
+			return
+		}
+
 		logExtraFields[logExtraFieldKeyStatusCode] = http.StatusInternalServerError
 		p.log.Debug("unable to get object", logExtraFields)
 		p.requestResponseErrorLog(w, http.StatusInternalServerError, "Internal Server Error", "unable to handle request", logExtraFields)
@@ -109,18 +120,6 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	}
 	defer objectResp.Close()
 	p.log.Debug("success in get object", logExtraFields)
-
-	if !info.Exist {
-		logExtraFields[logExtraFieldKeyError] = "object not exist in bucket"
-		logExtraFields[logExtraFieldKeyStatusCode] = http.StatusInternalServerError
-		p.requestResponseErrorLog(w, http.StatusNotFound, "Not Found", "unable to handle request", logExtraFields)
-
-		p.log.Debug("add action in pool", logExtraFields)
-		p.actionPool.Add(pools.ActionPoolRequestT{
-			Object: object,
-		})
-		return
-	}
 
 	// Set headers before response body
 	contentLen := strconv.FormatInt(info.Size, 10)

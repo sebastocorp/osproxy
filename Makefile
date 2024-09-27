@@ -3,7 +3,7 @@ BINARY ?= osproxy
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY ?= ghcr.io/sebastocorp
 IMG_NAME ?= osproxy
-IMG_TAG ?= latest
+IMG_TAG ?= osproxy-latest
 IMG ?= $(IMG_REGISTRY)/$(IMG_NAME):$(IMG_TAG)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)

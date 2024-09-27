@@ -4,7 +4,6 @@ go 1.22.3
 
 require (
 	cloud.google.com/go/storage v1.43.0
-	github.com/alecthomas/repr v0.4.0
 	github.com/minio/minio-go/v7 v7.0.75
 	github.com/spf13/cobra v1.8.1
 	google.golang.org/api v0.194.0

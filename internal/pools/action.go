@@ -1,8 +1,6 @@
 package pools
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"maps"
 	"sync"
 
@@ -37,7 +35,7 @@ func (p *ActionPoolT) Get() map[string]ActionPoolRequestT {
 }
 
 func (p *ActionPoolT) Add(r ActionPoolRequestT) {
-	key := hex.EncodeToString(md5.New().Sum([]byte(r.Object.String())))
+	key := r.Object.StructHash()
 	p.mu.Lock()
 	p.requests[key] = r
 	p.mu.Unlock()
