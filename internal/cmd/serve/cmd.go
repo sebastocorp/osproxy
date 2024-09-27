@@ -1,11 +1,8 @@
 package serve
 
 import (
-	"fmt"
 	"log"
-	"net/http"
 
-	"osproxy/internal/logger"
 	"osproxy/internal/osproxy"
 
 	"github.com/spf13/cobra"
@@ -14,17 +11,10 @@ import (
 const (
 	// FLAG NAMES
 
-	logLevelFlagName   = `log-level`
-	configFileFlagName = `config`
-
-	// ERROR MESSAGES
-
-	logLevelFlagErrMsg   = "unable to get flag --log-level: %s"
-	configFileFlagErrMsg = "unable to get flag --config: %s"
+	flagNameConfig = `config`
 )
 
 type serveFlagsT struct {
-	logLevel   string
 	configFile string
 }
 
@@ -39,9 +29,7 @@ func NewCommand() *cobra.Command {
 		Run: RunCommand,
 	}
 
-	cmd.Flags().String(logLevelFlagName, "info", "verbosity level for logs")
-
-	cmd.Flags().String(configFileFlagName, "osproxy.yaml", "filepath to config file")
+	cmd.Flags().String(flagNameConfig, "osproxy.yaml", "filepath to config file")
 
 	return cmd
 }
@@ -51,7 +39,7 @@ func NewCommand() *cobra.Command {
 func RunCommand(cmd *cobra.Command, args []string) {
 	flags, err := getFlags(cmd)
 	if err != nil {
-		logger.Log.Fatalf([]any{}, "unable to parse command flags")
+		log.Fatalf("unable to get flags: %s", err.Error())
 	}
 
 	/////////////////////////////
@@ -59,13 +47,12 @@ func RunCommand(cmd *cobra.Command, args []string) {
 	/////////////////////////////
 	osproxy, err := osproxy.NewOSProxy(flags.configFile)
 	if err != nil {
-		logger.Log.Fatalf([]any{}, "unable init osproxy: %s", err.Error())
+		log.Fatalf("unable init proxy: %s", err.Error())
 	}
 
 	// Iniciar el servidor proxy
-	logger.Log.Infof([]any{}, "init osproxy")
-	log.Fatal(http.ListenAndServe(
-		fmt.Sprintf("%s:%s", osproxy.Config.Proxy.Address, osproxy.Config.Proxy.Port),
-		http.HandlerFunc(osproxy.HandleFunc),
-	))
+	err = osproxy.Run()
+	if err != nil {
+		log.Fatalf("unable init proxy: %s", err.Error())
+	}
 }

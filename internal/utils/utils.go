@@ -3,6 +3,13 @@ package utils
 import (
 	"fmt"
 	"strings"
+
+	"osproxy/api/v1alpha3"
+	"osproxy/internal/objectStorage"
+)
+
+const (
+	DefaultSourceKey = "osproxy-source-default"
 )
 
 type RequestT struct {
@@ -36,6 +43,51 @@ func NewRequest(host, fullpath string) (r RequestT) {
 	}
 
 	return r
+}
+
+func (req *RequestT) GetObjectFromSource(source v1alpha3.SourceConfigT) (object objectStorage.ObjectT, err error) {
+	// Get object path
+	originalObjectPath := strings.TrimPrefix(req.Path, "/")
+
+	if source.Type == "host" {
+		hostBucketRelation, ok := source.Buckets[req.Host]
+		if !ok {
+			err = fmt.Errorf("host relation config not provided for '%s' host", req.Host)
+			return object, err
+		}
+
+		object = setObjectByBucketObject(originalObjectPath, hostBucketRelation)
+	}
+
+	if source.Type == "pathPrefix" {
+		for prefix, bucketObject := range source.Buckets {
+			if strings.HasPrefix(originalObjectPath, prefix) {
+				object = setObjectByBucketObject(originalObjectPath, bucketObject)
+				break
+			}
+		}
+
+		if object.Bucket == "" {
+			object = setObjectByBucketObject(originalObjectPath, source.Buckets[DefaultSourceKey])
+		}
+	}
+
+	return object, err
+}
+
+func setObjectByBucketObject(objectPath string, bucketObject v1alpha3.BucketObjectConfigT) (object objectStorage.ObjectT) {
+	objectPath = strings.TrimPrefix(objectPath, bucketObject.ObjectMod.RemovePrefix)
+
+	if bucketObject.ObjectMod.AddPrefix != "" {
+		objectPath = strings.Join([]string{bucketObject.ObjectMod.AddPrefix, objectPath}, "/")
+	}
+
+	object = objectStorage.ObjectT{
+		Bucket: bucketObject.Bucket,
+		Path:   objectPath,
+	}
+
+	return object
 }
 
 func (r *RequestT) String() string {

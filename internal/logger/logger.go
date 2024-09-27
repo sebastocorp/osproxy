@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
-	"slices"
 )
 
 // ----------------------------------------------------------------
@@ -22,22 +22,24 @@ const (
 )
 
 type LoggerT struct {
-	SLogger   *slog.Logger
-	Context   context.Context
-	ExtraAttr []any
+	// SLoggers     map[string]*slog.Logger
+	Logger       *slog.Logger
+	Context      context.Context
+	CommonFields map[string]any
 }
 
-var Log LoggerT
+func NewLogger(ctx context.Context, level LevelT, commonFields map[string]any) (logger LoggerT) {
+	logger.Context = ctx
+	logger.CommonFields = commonFields
 
-func InitLogger(ctx context.Context, level LevelT, extraAttr ...any) {
 	opts := &slog.HandlerOptions{
 		AddSource: false,
 		Level:     slog.Level(level),
 	}
 	jsonHandler := slog.NewJSONHandler(os.Stdout, opts)
-	Log.SLogger = slog.New(jsonHandler)
-	Log.Context = ctx
-	Log.ExtraAttr = extraAttr
+	logger.Logger = slog.New(jsonHandler)
+
+	return logger
 }
 
 func GetLevel(levelStr string) (l LevelT, err error) {
@@ -55,48 +57,50 @@ func GetLevel(levelStr string) (l LevelT, err error) {
 	return l, err
 }
 
-func (l *LoggerT) Debugf(extra []any, format string, args ...any) {
-	extra = slices.Concat(l.ExtraAttr, extra)
-	if l.Context != nil {
-		l.SLogger.DebugContext(l.Context, fmt.Sprintf(format, args...), extra...)
-		return
+func (l *LoggerT) Debug(msg string, extraFields map[string]any) {
+	maps.Copy(extraFields, l.CommonFields)
+	extraFieldsArr := []any{}
+	for k, v := range extraFields {
+		extraFieldsArr = append(extraFieldsArr, k, v)
 	}
-	l.SLogger.Debug(fmt.Sprintf(format, args...), extra...)
+
+	l.Logger.Debug(msg, extraFieldsArr...)
 }
 
-func (l *LoggerT) Infof(extra []any, format string, args ...any) {
-	extra = slices.Concat(l.ExtraAttr, extra)
-	if l.Context != nil {
-		l.SLogger.InfoContext(l.Context, fmt.Sprintf(format, args...), extra...)
-		return
+func (l *LoggerT) Info(msg string, extraFields map[string]any) {
+	maps.Copy(extraFields, l.CommonFields)
+	extraFieldsArr := []any{}
+	for k, v := range extraFields {
+		extraFieldsArr = append(extraFieldsArr, k, v)
 	}
-	l.SLogger.Info(fmt.Sprintf(format, args...), extra...)
+
+	l.Logger.Info(msg, extraFieldsArr...)
 }
 
-func (l *LoggerT) Warnf(extra []any, format string, args ...any) {
-	extra = slices.Concat(l.ExtraAttr, extra)
-	if l.Context != nil {
-		l.SLogger.WarnContext(l.Context, fmt.Sprintf(format, args...), extra...)
-		return
+func (l *LoggerT) Warn(msg string, extraFields map[string]any) {
+	maps.Copy(extraFields, l.CommonFields)
+	extraFieldsArr := []any{}
+	for k, v := range extraFields {
+		extraFieldsArr = append(extraFieldsArr, k, v)
 	}
-	l.SLogger.Warn(fmt.Sprintf(format, args...), extra...)
+	l.Logger.Warn(msg, extraFieldsArr...)
 }
 
-func (l *LoggerT) Errorf(extra []any, format string, args ...any) {
-	extra = slices.Concat(l.ExtraAttr, extra)
-	if l.Context != nil {
-		l.SLogger.ErrorContext(l.Context, fmt.Sprintf(format, args...), extra...)
-		return
+func (l *LoggerT) Error(msg string, extraFields map[string]any) {
+	maps.Copy(extraFields, l.CommonFields)
+	extraFieldsArr := []any{}
+	for k, v := range extraFields {
+		extraFieldsArr = append(extraFieldsArr, k, v)
 	}
-	l.SLogger.Error(fmt.Sprintf(format, args...), extra...)
+	l.Logger.Error(msg, extraFieldsArr...)
 }
 
-func (l *LoggerT) Fatalf(extra []any, format string, args ...any) {
-	extra = slices.Concat(l.ExtraAttr, extra)
-	if l.Context != nil {
-		l.SLogger.ErrorContext(l.Context, fmt.Sprintf(format, args...), extra...)
-		os.Exit(1)
+func (l *LoggerT) Fatal(msg string, extraFields map[string]any) {
+	maps.Copy(extraFields, l.CommonFields)
+	extraFieldsArr := []any{}
+	for k, v := range extraFields {
+		extraFieldsArr = append(extraFieldsArr, k, v)
 	}
-	l.SLogger.Error(fmt.Sprintf(format, args...), extra...)
+	l.Logger.Error(msg, extraFieldsArr...)
 	os.Exit(1)
 }
