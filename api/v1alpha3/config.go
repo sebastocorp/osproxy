@@ -24,6 +24,7 @@ type ProxyConfigT struct {
 
 type ActionWorkerConfigT struct {
 	Loglevel       string         `yaml:"loglevel"`
+	PoolCapacity   int            `yaml:"poolCapacity"`
 	Type           string         `yaml:"type"`
 	ScrapeInterval time.Duration  `yaml:"scrapeInterval"`
 	Request        RequestConfigT `yaml:"request"`

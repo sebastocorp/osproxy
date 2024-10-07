@@ -3,21 +3,17 @@ package actionWorkerComp
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"osproxy/api/v1alpha3"
+	"osproxy/internal/global"
 	"osproxy/internal/logger"
 	"osproxy/internal/objectStorage"
 	"osproxy/internal/pools"
 )
 
 const (
-	logExtraFieldKeyObject     = "object"
-	logExtraFieldKeyActionType = "action_type"
-	logExtraFieldKeyError      = "error"
-
 	actionTypeRequest = "request"
 )
 
@@ -33,15 +29,9 @@ func NewActionWorker(config v1alpha3.ActionWorkerConfigT, actionPool *pools.Acti
 	aw.config = config
 	aw.actionPool = actionPool
 
-	level, err := logger.GetLevel(aw.config.Loglevel)
-	if err != nil {
-		log.Fatalf("unable to get log level in action worker config: %s", err.Error())
-	}
-
-	aw.log = logger.NewLogger(context.Background(), level, map[string]any{
-		"service":   "osproxy",
-		"component": "actionWorker",
-	})
+	logCommon := global.GetLogCommonFields()
+	logCommon[global.LogFieldKeyCommonComponent] = global.LogFieldValueComponentActionWorker
+	aw.log = logger.NewLogger(context.Background(), logger.GetLevel(aw.config.Loglevel), logCommon)
 
 	aw.actionFuncs = map[string]func(objectStorage.ObjectT) error{
 		actionTypeRequest: aw.makeRequestAction,
@@ -57,27 +47,35 @@ func NewActionWorker(config v1alpha3.ActionWorkerConfigT, actionPool *pools.Acti
 func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	logExtraFields := map[string]any{
-		logExtraFieldKeyObject:     "none",
-		logExtraFieldKeyError:      "none",
-		logExtraFieldKeyActionType: a.config.Type,
-	}
+	logExtraFields := global.GetLogExtraFieldsActionWorker()
+	logExtraFields[global.LogFieldKeyExtraActionType] = a.config.Type
 
+	emptyPoolLog := true
 	for {
 		pool := a.actionPool.Get()
+
+		if len(pool) == 0 {
+			if emptyPoolLog {
+				a.log.Debug("wait for empty pool", logExtraFields)
+			}
+			emptyPoolLog = false
+			time.Sleep(a.config.ScrapeInterval)
+			continue
+		}
+		emptyPoolLog = true
 
 		for key, request := range pool {
 			a.actionPool.Remove(key)
 
-			logExtraFields[logExtraFieldKeyObject] = request.Object.String()
+			logExtraFields[global.LogFieldKeyExtraObject] = request.Object.String()
 			err := a.actionFuncs[a.config.Type](request.Object)
 			if err != nil {
-				logExtraFields[logExtraFieldKeyError] = err.Error()
+				logExtraFields[global.LogFieldKeyExtraError] = err.Error()
 				a.log.Error("unable make action", logExtraFields)
 				continue
 			}
 
-			a.log.Debug("success in make action", logExtraFields)
+			a.log.Info("success in make action", logExtraFields)
 		}
 
 		time.Sleep(a.config.ScrapeInterval)

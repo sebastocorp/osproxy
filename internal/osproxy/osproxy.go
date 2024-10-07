@@ -19,7 +19,7 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 		return o, err
 	}
 
-	actionPool := pools.NewActionPool()
+	actionPool := pools.NewActionPool(osConfig.ActionWorker.PoolCapacity)
 
 	o.proxy, err = proxyComp.NewProxy(osConfig.Proxy, actionPool)
 	if err != nil {

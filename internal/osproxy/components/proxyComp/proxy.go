@@ -4,25 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"osproxy/api/v1alpha3"
+	"osproxy/internal/global"
 	"osproxy/internal/logger"
 	"osproxy/internal/objectStorage"
 	"osproxy/internal/pools"
 	"osproxy/internal/utils"
-)
-
-const (
-	logExtraFieldKeyRequest       = "request"
-	logExtraFieldKeyStatusCode    = "status_code"
-	logExtraFieldKeyContentLength = "content_length"
-	logExtraFieldKeyDataBytes     = "data_bytes"
-	logExtraFieldKeyObject        = "object"
-	logExtraFieldKeyError         = "error"
 )
 
 type ProxyT struct {
@@ -30,6 +22,8 @@ type ProxyT struct {
 	log    logger.LoggerT
 
 	actionPool *pools.ActionPoolT
+	ctx        context.Context
+	server     *http.Server
 	objManager objectStorage.ManagerT
 }
 
@@ -37,19 +31,22 @@ func NewProxy(config v1alpha3.ProxyConfigT, actionPool *pools.ActionPoolT) (p Pr
 	p.config = config
 	p.actionPool = actionPool
 
-	if p.config.Loglevel == "" {
-		p.config.Loglevel = "info"
-	}
+	logCommon := global.GetLogCommonFields()
+	logCommon[global.LogFieldKeyCommonComponent] = global.LogFieldValueComponentProxy
+	p.log = logger.NewLogger(context.Background(), logger.GetLevel(p.config.Loglevel), logCommon)
 
-	level, err := logger.GetLevel(p.config.Loglevel)
-	if err != nil {
-		log.Fatalf("unable to get log level in proxy config: %s", err.Error())
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc(global.EndpointHealthz, p.getHealthz)
+	mux.HandleFunc("/", p.HandleFunc)
 
-	p.log = logger.NewLogger(context.Background(), level, map[string]any{
-		"service":   "osproxy",
-		"component": "proxy",
-	})
+	p.ctx = context.Background()
+	p.server = &http.Server{
+		Addr:         fmt.Sprintf("%s:%s", p.config.Address, p.config.Port),
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  30 * time.Second,
+	}
 
 	p.objManager, err = objectStorage.NewManager(context.Background(),
 		p.config.Source.Config,
@@ -60,62 +57,65 @@ func NewProxy(config v1alpha3.ProxyConfigT, actionPool *pools.ActionPoolT) (p Pr
 func (p *ProxyT) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	err := http.ListenAndServe(
-		fmt.Sprintf("%s:%s", p.config.Address, p.config.Port),
-		http.HandlerFunc(p.HandleFunc),
-	)
+	logExtra := global.GetLogExtraFieldsProxy()
+
+	err := p.server.ListenAndServe()
 	if err != nil {
-		p.log.Error("unable to serve proxy",
-			map[string]any{
-				"error": err.Error(),
-			},
-		)
+		logExtra[global.LogFieldKeyExtraError] = err.Error()
+		p.log.Error("unable to serve proxy", logExtra)
 	}
+}
+
+func (p *ProxyT) getHealthz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	var err error
-	logExtraFields := map[string]any{
-		logExtraFieldKeyRequest:       "none",
-		logExtraFieldKeyStatusCode:    "none",
-		logExtraFieldKeyDataBytes:     "none",
-		logExtraFieldKeyContentLength: "none",
-		logExtraFieldKeyObject:        "none",
-		logExtraFieldKeyError:         "none",
-	}
+	logExtraFields := global.GetLogExtraFieldsProxy()
 
 	req := utils.NewRequest(r.Host, r.URL.Path)
-	logExtraFields[logExtraFieldKeyRequest] = req.String()
+	logExtraFields[global.LogFieldKeyExtraRequest] = req.String()
 
 	object, err := req.GetObjectFromSource(p.config.Source)
 	if err != nil {
-		logExtraFields[logExtraFieldKeyError] = err.Error()
-		logExtraFields[logExtraFieldKeyStatusCode] = http.StatusInternalServerError
-		p.log.Debug("unable to process request", logExtraFields)
-		p.requestResponseErrorLog(w, http.StatusInternalServerError, "Internal Server Error", "unable to handle request", logExtraFields)
+		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
+
+		logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+		logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusInternalServerError
+		p.log.Error("unable to process request", logExtraFields)
 		return
 	}
 	p.log.Debug("success in process request", logExtraFields)
 
-	logExtraFields[logExtraFieldKeyObject] = object.String()
+	logExtraFields[global.LogFieldKeyExtraObject] = object.String()
 
 	objectResp, info, err := p.objManager.S3GetObject(object)
 	if err != nil {
-		logExtraFields[logExtraFieldKeyError] = err.Error()
+		logExtraFields[global.LogFieldKeyExtraError] = err.Error()
 		if info.NotExistError {
-			logExtraFields[logExtraFieldKeyStatusCode] = http.StatusNotFound
-			p.requestResponseErrorLog(w, http.StatusNotFound, "Not Found", "unable to handle request", logExtraFields)
+			p.requestResponseError(w, http.StatusNotFound, "Not Found")
+
+			logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusNotFound
+			p.log.Error("object does not exist", logExtraFields)
 
 			p.actionPool.Add(pools.ActionPoolRequestT{
 				Object: object,
 			})
-			p.log.Debug("action in pool added", logExtraFields)
+			p.log.Debug("add action in pool", logExtraFields)
+
 			return
 		}
 
-		logExtraFields[logExtraFieldKeyStatusCode] = http.StatusInternalServerError
-		p.log.Debug("unable to get object", logExtraFields)
-		p.requestResponseErrorLog(w, http.StatusInternalServerError, "Internal Server Error", "unable to handle request", logExtraFields)
+		logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusInternalServerError
+		p.log.Error("unable to get object", logExtraFields)
+		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 	defer objectResp.Close()
@@ -132,15 +132,15 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	logExtraFields[logExtraFieldKeyStatusCode] = http.StatusOK
-	logExtraFields[logExtraFieldKeyContentLength] = contentLen
+	logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusOK
+	logExtraFields[global.LogFieldKeyExtraContentLength] = contentLen
 	// Copy object data in response body
 	dataBytes, dataErr := io.Copy(w, objectResp)
-	logExtraFields[logExtraFieldKeyDataBytes] = dataBytes
+	logExtraFields[global.LogFieldKeyExtraDataBytes] = dataBytes
 	if dataErr != nil {
-		logExtraFields[logExtraFieldKeyError] = dataErr.Error()
-		p.log.Debug("unable to copy data", logExtraFields)
-		p.requestResponseErrorLog(w, http.StatusInternalServerError, "Internal Server Error", "unable to handle request", logExtraFields)
+		logExtraFields[global.LogFieldKeyExtraError] = dataErr.Error()
+		p.log.Error("unable to copy data", logExtraFields)
+		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 

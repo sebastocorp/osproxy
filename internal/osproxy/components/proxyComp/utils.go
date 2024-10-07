@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func (p *ProxyT) requestResponseErrorLog(respWriter http.ResponseWriter, respStatusCode int, respMessage string, logMessage string, logExtraFields map[string]any) {
+func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatusCode int, respMessage string) {
 	respMessage = fmt.Sprintf("%d %s\n", respStatusCode, respMessage)
 
 	// response to user request
@@ -14,7 +14,4 @@ func (p *ProxyT) requestResponseErrorLog(respWriter http.ResponseWriter, respSta
 	respWriter.Header().Set("Content-Length", strconv.Itoa(len(respMessage)))
 	respWriter.WriteHeader(respStatusCode)
 	respWriter.Write([]byte(respMessage))
-
-	// log request
-	p.log.Error(logMessage, logExtraFields)
 }

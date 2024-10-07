@@ -9,6 +9,8 @@ import (
 
 type ActionPoolT struct {
 	mu       sync.RWMutex
+	cap      int
+	current  int
 	requests map[string]ActionPoolRequestT
 }
 
@@ -16,8 +18,10 @@ type ActionPoolRequestT struct {
 	Object objectStorage.ObjectT
 }
 
-func NewActionPool() (p *ActionPoolT) {
+func NewActionPool(cap int) (p *ActionPoolT) {
 	p = &ActionPoolT{
+		cap:      cap,
+		current:  0,
 		requests: map[string]ActionPoolRequestT{},
 	}
 
@@ -37,12 +41,16 @@ func (p *ActionPoolT) Get() map[string]ActionPoolRequestT {
 func (p *ActionPoolT) Add(r ActionPoolRequestT) {
 	key := r.Object.StructHash()
 	p.mu.Lock()
-	p.requests[key] = r
+	if p.current < p.cap {
+		p.requests[key] = r
+		p.current++
+	}
 	p.mu.Unlock()
 }
 
 func (p *ActionPoolT) Remove(key string) {
 	p.mu.Lock()
 	delete(p.requests, key)
+	p.current--
 	p.mu.Unlock()
 }
