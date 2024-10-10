@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"osproxy/api/v1alpha3"
+	"osproxy/api/v1alpha4"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
 	"osproxy/internal/objectStorage"
@@ -18,7 +18,7 @@ import (
 )
 
 type ProxyT struct {
-	config v1alpha3.ProxyConfigT
+	config v1alpha4.ProxyConfigT
 	log    logger.LoggerT
 
 	actionPool *pools.ActionPoolT
@@ -27,7 +27,7 @@ type ProxyT struct {
 	objManager objectStorage.ManagerT
 }
 
-func NewProxy(config v1alpha3.ProxyConfigT, actionPool *pools.ActionPoolT) (p ProxyT, err error) {
+func NewProxy(config v1alpha4.ProxyConfigT, actionPool *pools.ActionPoolT) (p ProxyT, err error) {
 	p.config = config
 	p.actionPool = actionPool
 
@@ -49,7 +49,7 @@ func NewProxy(config v1alpha3.ProxyConfigT, actionPool *pools.ActionPoolT) (p Pr
 	}
 
 	p.objManager, err = objectStorage.NewManager(context.Background(),
-		p.config.Source.Config,
+		p.config.ObjectStorageConfig,
 	)
 
 	return p, err
@@ -79,11 +79,10 @@ func (p *ProxyT) getHealthz(w http.ResponseWriter, r *http.Request) {
 func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	var err error
 	logExtraFields := global.GetLogExtraFieldsProxy()
+	logExtraFields[global.LogFieldKeyExtraRequest] = utils.RequestString(r)
 
-	req := utils.NewRequest(r.Host, r.URL.Path)
-	logExtraFields[global.LogFieldKeyExtraRequest] = req.String()
-
-	object, err := req.GetObjectFromSource(p.config.Source)
+	// object, err := req.GetObjectFromRequest(p.config.RequestRouting)
+	object, err := p.GetObjectFromRequest(r)
 	if err != nil {
 		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 
@@ -122,10 +121,18 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	p.log.Debug("success in get object", logExtraFields)
 
 	// Set headers before response body
+	for hk, hvs := range r.Header {
+		for _, hv := range hvs {
+			if hk != "Content-Type" && hk != "Content-Length" && hk != "Content-Disposition" {
+				w.Header().Set(hk, hv)
+			}
+		}
+	}
 	contentLen := strconv.FormatInt(info.Size, 10)
 	w.Header().Set("Content-Type", info.ContentType)
 	w.Header().Set("Content-Length", contentLen)
-	if filename, ok := req.QueryParams["filename"]; ok {
+
+	if filename := r.URL.Query().Get("filename"); filename != "" {
 		contentDispositionHeaderVal := fmt.Sprintf("inline; filename=\"%s\"", filename)
 		w.Header().Set("Content-Disposition", contentDispositionHeaderVal)
 	}

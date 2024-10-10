@@ -1,4 +1,4 @@
-package v1alpha3
+package v1alpha4
 
 import "time"
 
@@ -12,10 +12,11 @@ type OSProxyConfigT struct {
 //--------------------------------------------------------------
 
 type ProxyConfigT struct {
-	Loglevel string        `yaml:"loglevel"`
-	Address  string        `yaml:"address"`
-	Port     string        `yaml:"port"`
-	Source   SourceConfigT `yaml:"source"`
+	Loglevel            string                `yaml:"loglevel"`
+	Address             string                `yaml:"address"`
+	Port                string                `yaml:"port"`
+	RequestRouting      RequestRoutingConfigT `yaml:"requestRouting"`
+	ObjectStorageConfig ObjectStorageConfigT  `yaml:"objectStorageConfig"`
 }
 
 //--------------------------------------------------------------
@@ -38,18 +39,14 @@ type RequestConfigT struct {
 // SOURCE STORAGE CONFIG
 //--------------------------------------------------------------
 
-type SourceConfigT struct {
-	Config  ObjectStorageConfigT           `yaml:"config"`
-	Type    string                         `yaml:"type"`
-	Buckets map[string]BucketObjectConfigT `yaml:"buckets"`
-}
-
-type BucketObjectConfigT struct {
-	Bucket    string                    `yaml:"bucket"`
-	ObjectMod ObjectModificationConfigT `yaml:"objectModification"`
+type RequestRoutingConfigT struct {
+	Type       string                               `yaml:"type"`
+	HeaderName string                               `yaml:"headerName"`
+	Routes     map[string]ObjectModificationConfigT `yaml:"routes"`
 }
 
 type ObjectModificationConfigT struct {
+	Bucket       string `yaml:"bucket"`
 	AddPrefix    string `yaml:"addPrefix"`
 	RemovePrefix string `yaml:"removePrefix"`
 }

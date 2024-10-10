@@ -1,0 +1,23 @@
+proxy:
+  address: ""
+  port: "8080"
+  requestRouting:
+    type: pathPrefix # pathPrefix|host|headerValue
+    headerName: "X-Real-Ip"
+    routes:
+      "path/prefix/":
+        bucket: bucket-name
+        removePrefix: "path/to/remove/"
+        addPrefix: "path/to/remove/"
+  objectStorage:
+    s3:
+      endpoint: $OSPROXY_S3_ENDPOINT
+      accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
+      secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
+      region: $OSPROXY_S3_REGION
+      secure: true
+actionWorker:
+  type: request
+  scrapeInterval: 2s
+  request:
+    url: "http://example.com:8080/transfer"

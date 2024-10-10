@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"osproxy/api/v1alpha3"
+	"osproxy/api/v1alpha4"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
 	"osproxy/internal/objectStorage"
@@ -18,14 +18,14 @@ const (
 )
 
 type ActionWorkerT struct {
-	config v1alpha3.ActionWorkerConfigT
+	config v1alpha4.ActionWorkerConfigT
 	log    logger.LoggerT
 
 	actionPool  *pools.ActionPoolT
 	actionFuncs map[string]func(objectStorage.ObjectT) error
 }
 
-func NewActionWorker(config v1alpha3.ActionWorkerConfigT, actionPool *pools.ActionPoolT) (aw ActionWorkerT, err error) {
+func NewActionWorker(config v1alpha4.ActionWorkerConfigT, actionPool *pools.ActionPoolT) (aw ActionWorkerT, err error) {
 	aw.config = config
 	aw.actionPool = actionPool
 

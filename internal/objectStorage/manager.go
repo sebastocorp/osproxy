@@ -5,9 +5,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"osproxy/api/v1alpha4"
 	"reflect"
-
-	"osproxy/api/v1alpha3"
 
 	"cloud.google.com/go/storage"
 	"github.com/minio/minio-go/v7"
@@ -34,7 +33,7 @@ type ObjectInfoT struct {
 	ContentType   string
 }
 
-func NewManager(ctx context.Context, config v1alpha3.ObjectStorageConfigT) (man ManagerT, err error) {
+func NewManager(ctx context.Context, config v1alpha4.ObjectStorageConfigT) (man ManagerT, err error) {
 	man.Ctx = ctx
 
 	man.S3Client, err = minio.New(
