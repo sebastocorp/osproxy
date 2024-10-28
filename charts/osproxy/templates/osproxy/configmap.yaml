@@ -6,9 +6,6 @@ metadata:
   labels:
     component: osproxy
     {{- include "osproxy.labels" . | nindent 4 }}
-    {{- with .Values.osproxy.extraLabels }}
-    {{- toYaml . | nindent 8 }}
-    {{- end }}
 
   {{- with .Values.osproxy.annotations }}
   annotations:

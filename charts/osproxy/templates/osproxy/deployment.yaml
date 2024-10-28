@@ -30,7 +30,7 @@ spec:
       labels:
         component: osproxy
         {{- include "osproxy.selectorLabels" . | nindent 8 }}
-        {{- with .Values.osproxy.extraLabels }}
+        {{- with .Values.osproxy.extraPodLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
 

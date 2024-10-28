@@ -25,8 +25,5 @@ spec:
     matchLabels:
       component: osproxy
       {{- include "osproxy.selectorLabels" . | nindent 4 }}
-      {{- with .Values.osproxy.extraLabels }}
-      {{- toYaml . | nindent 8 }}
-      {{- end }}
 ---
 {{- end }}
