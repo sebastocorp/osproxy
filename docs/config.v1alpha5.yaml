@@ -1,0 +1,37 @@
+proxy:
+  address: ""
+  port: "8080"
+  modifications:
+    "example-mod":
+      type: path # path|header
+      path:
+        removePrefix: "path/to/remove/"
+        addPrefix: "path/to/remove/"
+      # header:
+      #   name: "X-Real-Ip"
+      #   remove: false
+      #   value: "0.0.0.0"
+  sources:
+    "example-s3":
+      type: s3
+      s3:
+        endpoint: $OSPROXY_S3_ENDPOINT
+        accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
+        secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
+        region: $OSPROXY_S3_REGION
+        secure: true
+      # gcs:
+      #   credentialsFile: exampre-gcs-credentials.json
+  routing:
+    matchType: pathPrefix # pathPrefix|host|headerValue
+    headerName: "X-Real-Ip"
+    routes:
+      "path/prefix/":
+        modifications: ["example-mod"]
+        source: example-s3
+        bucket: bucket-name
+actionWorker:
+  type: request
+  scrapeInterval: 2s
+  request:
+    url: "http://example.com:8080/transfer"
