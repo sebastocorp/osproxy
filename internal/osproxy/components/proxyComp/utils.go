@@ -3,8 +3,8 @@ package proxyComp
 import (
 	"fmt"
 	"net/http"
-	"osproxy/api/v1alpha4"
-	"osproxy/internal/objectStorage"
+	"osproxy/api/v1alpha5"
+	"osproxy/internal/objectstorage"
 	"strconv"
 	"strings"
 )
@@ -19,30 +19,80 @@ func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatus
 	respWriter.Write([]byte(respMessage))
 }
 
-func (p *ProxyT) GetObjectFromRequest(r *http.Request) (object objectStorage.ObjectT, err error) {
-	// Get object path
-	originalObjectPath := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "?")[0]
-
-	var mod v1alpha4.ObjectModificationConfigT
+func (p *ProxyT) getRouteFromRequest(r *http.Request) (route v1alpha5.ProxyRouteConfigT, err error) {
 	var found bool = false
-	switch p.config.RequestRouting.Type {
+	switch p.config.Proxy.RequestRouting.MatchType {
 	case "host":
 		{
-			mod, found = p.config.RequestRouting.Routes[r.Host]
+			route, found = p.config.Proxy.RequestRouting.Routes[r.Host]
 		}
 	case "headerValue":
 		{
-			if p.config.RequestRouting.HeaderName == "" {
-				err = fmt.Errorf("header name in header routing config not provided")
-				return object, err
-			}
-
-			mod, found = p.config.RequestRouting.Routes[r.Header.Get(p.config.RequestRouting.HeaderName)]
+			route, found = p.config.Proxy.RequestRouting.Routes[r.Header.Get(p.config.Proxy.RequestRouting.HeaderKey)]
 
 		}
 	case "pathPrefix":
 		{
-			for prefix, objMod := range p.config.RequestRouting.Routes {
+			requestPath := strings.SplitN(r.URL.Path, "?", 2)[0]
+			for prefix, rout := range p.config.Proxy.RequestRouting.Routes {
+				if strings.HasPrefix(requestPath, prefix) {
+					route = rout
+					found = true
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		err = fmt.Errorf("routing config not provided for this request")
+		return route, err
+	}
+
+	return route, err
+}
+
+func (p *ProxyT) modRequest(r *http.Request, modifications []string) (err error) {
+	r.URL.Path = strings.SplitN(r.URL.Path, "?", 2)[0]
+	for _, modn := range modifications {
+		mod := p.config.Proxy.Modifications[modn]
+		switch mod.Type {
+		case "path":
+			{
+				r.URL.Path = mod.Path.AddPrefix + strings.TrimPrefix(r.URL.Path, mod.Path.RemovePrefix)
+			}
+		case "header":
+			{
+				r.Header.Set(mod.Header.Name, mod.Header.Value)
+				if mod.Header.Remove {
+					r.Header.Del(mod.Header.Name)
+				}
+			}
+		}
+	}
+
+	return err
+}
+
+func (p *ProxyT) GetObjectFromRequest(r *http.Request) (object objectstorage.ObjectT, err error) {
+	// Get object path
+	originalObjectPath := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "?")[0]
+
+	var mod v1alpha5.ProxyRouteConfigT
+	var found bool = false
+	switch p.config.Proxy.RequestRouting.MatchType {
+	case "host":
+		{
+			mod, found = p.config.Proxy.RequestRouting.Routes[r.Host]
+		}
+	case "headerValue":
+		{
+			mod, found = p.config.Proxy.RequestRouting.Routes[r.Header.Get(p.config.Proxy.RequestRouting.HeaderKey)]
+
+		}
+	case "pathPrefix":
+		{
+			for prefix, objMod := range p.config.Proxy.RequestRouting.Routes {
 				if strings.HasPrefix(originalObjectPath, prefix) {
 					mod = objMod
 					found = true
@@ -57,19 +107,7 @@ func (p *ProxyT) GetObjectFromRequest(r *http.Request) (object objectStorage.Obj
 		return object, err
 	}
 
-	object = setObjectByBucketObject(originalObjectPath, mod)
-
+	// object = setObjectByBucketObject(originalObjectPath, mod)
+	_ = mod
 	return object, err
-}
-
-func setObjectByBucketObject(objectPath string, objectMod v1alpha4.ObjectModificationConfigT) (object objectStorage.ObjectT) {
-	objectPath = strings.TrimPrefix(objectPath, objectMod.RemovePrefix)
-	objectPath = objectMod.AddPrefix + objectPath
-
-	object = objectStorage.ObjectT{
-		Bucket: objectMod.Bucket,
-		Path:   objectPath,
-	}
-
-	return object
 }

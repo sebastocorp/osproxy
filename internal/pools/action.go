@@ -4,7 +4,7 @@ import (
 	"maps"
 	"sync"
 
-	"osproxy/internal/objectStorage"
+	"osproxy/internal/objectstorage"
 )
 
 type ActionPoolT struct {
@@ -15,7 +15,7 @@ type ActionPoolT struct {
 }
 
 type ActionPoolRequestT struct {
-	Object objectStorage.ObjectT
+	Object objectstorage.ObjectT
 }
 
 func NewActionPool(cap int) (p *ActionPoolT) {

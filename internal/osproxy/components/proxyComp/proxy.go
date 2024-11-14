@@ -6,51 +6,60 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
-	"osproxy/api/v1alpha4"
+	"osproxy/api/v1alpha5"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
-	"osproxy/internal/objectStorage"
+	"osproxy/internal/objectstorage"
 	"osproxy/internal/pools"
 	"osproxy/internal/utils"
 )
 
 type ProxyT struct {
-	config v1alpha4.ProxyConfigT
+	config *v1alpha5.OSProxyConfigT
 	log    logger.LoggerT
 
 	actionPool *pools.ActionPoolT
 	ctx        context.Context
 	server     *http.Server
-	objManager objectStorage.ManagerT
+	// objManager objectstorage.ObjectManagerI
+
+	sources map[string]objectstorage.ObjectManagerI
 }
 
-func NewProxy(config v1alpha4.ProxyConfigT, actionPool *pools.ActionPoolT) (p ProxyT, err error) {
+func NewProxy(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPoolT) (p ProxyT, err error) {
 	p.config = config
 	p.actionPool = actionPool
+	p.ctx = context.Background()
 
 	logCommon := global.GetLogCommonFields()
 	logCommon[global.LogFieldKeyCommonComponent] = global.LogFieldValueComponentProxy
-	p.log = logger.NewLogger(context.Background(), logger.GetLevel(p.config.Loglevel), logCommon)
+	p.log = logger.NewLogger(p.ctx, logger.GetLevel(p.config.Proxy.Loglevel), logCommon)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(global.EndpointHealthz, p.getHealthz)
 	mux.HandleFunc("/", p.HandleFunc)
 
-	p.ctx = context.Background()
 	p.server = &http.Server{
-		Addr:         fmt.Sprintf("%s:%s", p.config.Address, p.config.Port),
+		Addr:         fmt.Sprintf("%s:%s", p.config.Proxy.Address, p.config.Proxy.Port),
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  30 * time.Second,
 	}
 
-	p.objManager, err = objectStorage.NewManager(context.Background(),
-		p.config.ObjectStorageConfig,
-	)
+	objManagers := objectstorage.GetManagers()
+	p.sources = map[string]objectstorage.ObjectManagerI{}
+	for srck, srcv := range p.config.Proxy.Sources {
+		p.sources[srck] = objManagers[srcv.Type]
+		err = p.sources[srck].Init(p.ctx, srcv)
+		if err != nil {
+			return p, err
+		}
+	}
 
 	return p, err
 }
@@ -81,8 +90,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	logExtraFields := global.GetLogExtraFieldsProxy()
 	logExtraFields[global.LogFieldKeyExtraRequest] = utils.RequestString(r)
 
-	// object, err := req.GetObjectFromRequest(p.config.RequestRouting)
-	object, err := p.GetObjectFromRequest(r)
+	route, err := p.getRouteFromRequest(r)
 	if err != nil {
 		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 
@@ -91,11 +99,15 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		p.log.Error("unable to process request", logExtraFields)
 		return
 	}
-	p.log.Debug("success in process request", logExtraFields)
 
+	p.modRequest(r, route.Modifications)
+	object := objectstorage.ObjectT{
+		Bucket: route.Bucket,
+		Path:   strings.TrimPrefix(r.URL.Path, "/"),
+	}
 	logExtraFields[global.LogFieldKeyExtraObject] = object.String()
 
-	objectResp, info, err := p.objManager.S3GetObject(object)
+	objectResp, info, err := p.sources[route.Source].GetObject(object)
 	if err != nil {
 		logExtraFields[global.LogFieldKeyExtraError] = err.Error()
 		if info.NotExistError {
@@ -118,7 +130,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer objectResp.Close()
-	p.log.Debug("success in get object", logExtraFields)
+	p.log.Debug("success in get object reader", logExtraFields)
 
 	// Set headers before response body
 	for hk, hvs := range r.Header {

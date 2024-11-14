@@ -1,4 +1,5 @@
 proxy:
+  loglevel: "info"
   address: ""
   port: "8080"
   modifications:
@@ -22,15 +23,16 @@ proxy:
         secure: true
       # gcs:
       #   credentialsFile: exampre-gcs-credentials.json
-  routing:
+  requestRouting:
     matchType: pathPrefix # pathPrefix|host|headerValue
-    headerName: "X-Real-Ip"
+    headerKey: "X-Real-Ip"
     routes:
       "path/prefix/":
-        modifications: ["example-mod"]
         source: example-s3
+        modifications: ["example-mod"]
         bucket: bucket-name
 actionWorker:
+  loglevel: "info"
   type: request
   scrapeInterval: 2s
   request:

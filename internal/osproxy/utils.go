@@ -3,12 +3,12 @@ package osproxy
 import (
 	"os"
 
-	"osproxy/api/v1alpha4"
+	"osproxy/api/v1alpha5"
 
 	"gopkg.in/yaml.v3"
 )
 
-func parseConfig(filepath string) (config v1alpha4.OSProxyConfigT, err error) {
+func parseConfig(filepath string) (config v1alpha5.OSProxyConfigT, err error) {
 	configBytes, err := os.ReadFile(filepath)
 	if err != nil {
 		return config, err

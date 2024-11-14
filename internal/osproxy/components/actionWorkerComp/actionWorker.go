@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"osproxy/api/v1alpha4"
+	"osproxy/api/v1alpha5"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
-	"osproxy/internal/objectStorage"
+	"osproxy/internal/objectstorage"
 	"osproxy/internal/pools"
 )
 
@@ -18,26 +18,26 @@ const (
 )
 
 type ActionWorkerT struct {
-	config v1alpha4.ActionWorkerConfigT
+	config *v1alpha5.OSProxyConfigT
 	log    logger.LoggerT
 
 	actionPool  *pools.ActionPoolT
-	actionFuncs map[string]func(objectStorage.ObjectT) error
+	actionFuncs map[string]func(objectstorage.ObjectT) error
 }
 
-func NewActionWorker(config v1alpha4.ActionWorkerConfigT, actionPool *pools.ActionPoolT) (aw ActionWorkerT, err error) {
+func NewActionWorker(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPoolT) (aw ActionWorkerT, err error) {
 	aw.config = config
 	aw.actionPool = actionPool
 
 	logCommon := global.GetLogCommonFields()
 	logCommon[global.LogFieldKeyCommonComponent] = global.LogFieldValueComponentActionWorker
-	aw.log = logger.NewLogger(context.Background(), logger.GetLevel(aw.config.Loglevel), logCommon)
+	aw.log = logger.NewLogger(context.Background(), logger.GetLevel(aw.config.ActionWorker.Loglevel), logCommon)
 
-	aw.actionFuncs = map[string]func(objectStorage.ObjectT) error{
+	aw.actionFuncs = map[string]func(objectstorage.ObjectT) error{
 		actionTypeRequest: aw.makeRequestAction,
 	}
 
-	if _, ok := aw.actionFuncs[aw.config.Type]; !ok {
+	if _, ok := aw.actionFuncs[aw.config.ActionWorker.Type]; !ok {
 		err = fmt.Errorf("action worker type not suported")
 	}
 
@@ -48,10 +48,13 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	logExtraFields := global.GetLogExtraFieldsActionWorker()
-	logExtraFields[global.LogFieldKeyExtraActionType] = a.config.Type
+	logExtraFields[global.LogFieldKeyExtraActionType] = a.config.ActionWorker.Type
 
 	emptyPoolLog := true
 	for {
+		logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+		logExtraFields[global.LogFieldKeyExtraObject] = global.LogFieldValueDefault
+
 		pool := a.actionPool.Get()
 
 		if len(pool) == 0 {
@@ -59,7 +62,7 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 				a.log.Debug("wait for empty pool", logExtraFields)
 			}
 			emptyPoolLog = false
-			time.Sleep(a.config.ScrapeInterval)
+			time.Sleep(a.config.ActionWorker.ScrapeInterval)
 			continue
 		}
 		emptyPoolLog = true
@@ -67,8 +70,9 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 		for key, request := range pool {
 			a.actionPool.Remove(key)
 
+			logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
 			logExtraFields[global.LogFieldKeyExtraObject] = request.Object.String()
-			err := a.actionFuncs[a.config.Type](request.Object)
+			err := a.actionFuncs[a.config.ActionWorker.Type](request.Object)
 			if err != nil {
 				logExtraFields[global.LogFieldKeyExtraError] = err.Error()
 				a.log.Error("unable make action", logExtraFields)
@@ -78,7 +82,7 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 			a.log.Info("success in make action", logExtraFields)
 		}
 
-		time.Sleep(a.config.ScrapeInterval)
+		time.Sleep(a.config.ActionWorker.ScrapeInterval)
 	}
 
 }
