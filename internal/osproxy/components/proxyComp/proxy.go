@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -103,7 +102,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	p.modRequest(r, route.Modifications)
 	object := objectstorage.ObjectT{
 		Bucket: route.Bucket,
-		Path:   strings.TrimPrefix(r.URL.Path, "/"),
+		Path:   r.URL.Path,
 	}
 	logExtraFields[global.LogFieldKeyExtraObject] = object.String()
 

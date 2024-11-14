@@ -44,7 +44,6 @@ func (m *S3ManagerT) GetObject(obj ObjectT) (objReader ObjectReaderI, info Objec
 		}
 		return objReader, info, err
 	}
-	object.Close()
 
 	info.MD5 = stat.ETag
 	info.ContentType = stat.ContentType
