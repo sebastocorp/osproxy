@@ -55,7 +55,7 @@ func (p *ProxyT) getRouteFromRequest(r *http.Request) (route v1alpha5.ProxyRoute
 func (p *ProxyT) modRequest(r *http.Request, modifications []string) (err error) {
 	r.URL.Path = strings.SplitN(r.URL.Path, "?", 2)[0]
 	for _, modn := range modifications {
-		mod := p.config.Proxy.Modifications[modn]
+		mod := p.config.Proxy.RequestModifiers[modn]
 		switch mod.Type {
 		case "path":
 			{

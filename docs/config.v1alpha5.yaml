@@ -2,16 +2,6 @@ proxy:
   loglevel: "info"
   address: ""
   port: "8080"
-  modifications:
-    "example-mod":
-      type: path # path|header
-      path:
-        removePrefix: "path/to/remove/"
-        addPrefix: "path/to/remove/"
-      # header:
-      #   name: "X-Real-Ip"
-      #   remove: false
-      #   value: "0.0.0.0"
   sources:
     "example-s3":
       type: s3
@@ -23,6 +13,16 @@ proxy:
         secure: true
       # gcs:
       #   credentialsFile: exampre-gcs-credentials.json
+  modifications:
+    "example-mod":
+      type: path # path|header
+      path:
+        removePrefix: "path/to/remove/"
+        addPrefix: "path/to/remove/"
+      # header:
+      #   name: "X-Real-Ip"
+      #   remove: false
+      #   value: "0.0.0.0"
   requestRouting:
     matchType: pathPrefix # pathPrefix|host|headerValue
     headerKey: "X-Real-Ip"

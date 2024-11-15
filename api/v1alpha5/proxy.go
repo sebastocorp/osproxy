@@ -5,36 +5,20 @@ package v1alpha5
 //--------------------------------------------------------------
 
 type ProxyConfigT struct {
-	Loglevel       string                              `yaml:"loglevel"`
-	Address        string                              `yaml:"address"`
-	Port           string                              `yaml:"port"`
-	Modifications  map[string]ProxyModificationConfigT `yaml:"modifications"`
-	Sources        map[string]ProxySourceConfigT       `yaml:"sources"`
-	RequestRouting ProxyRequestRoutingConfigT          `yaml:"requestRouting"`
-}
-
-// Modifications config
-
-type ProxyModificationConfigT struct {
-	Type   string                         `yaml:"type"`
-	Path   ProxyModificationPathConfigT   `yaml:"path"`
-	Header ProxyModificationHeaderConfigT `yaml:"header"`
-}
-
-type ProxyModificationPathConfigT struct {
-	AddPrefix    string `yaml:"addPrefix"`
-	RemovePrefix string `yaml:"removePrefix"`
-}
-
-type ProxyModificationHeaderConfigT struct {
-	Name   string `yaml:"name"`
-	Remove bool   `yaml:"remove"`
-	Value  string `yaml:"value"`
+	Loglevel         string                     `yaml:"loglevel"`
+	Protocol         string                     `yaml:"protocol"`
+	Address          string                     `yaml:"address"`
+	Port             string                     `yaml:"port"`
+	Sources          []ProxySourceConfigT       `yaml:"sources"`
+	RequestModifiers []ProxyModifierConfigT     `yaml:"requestModifiers"`
+	RequestRouting   ProxyRequestRoutingConfigT `yaml:"requestRouting"`
+	RespReactions    ProxyRespReactionsConfigT  `yaml:"responseReactions"`
 }
 
 // Sources config
 
 type ProxySourceConfigT struct {
+	Name string                `yaml:"name"`
 	Type string                `yaml:"type"`
 	S3   ProxySourceS3ConfigT  `yaml:"s3,omitempty"`
 	GCS  ProxySourceGCSConfigT `yaml:"gcs,omitempty"`
@@ -45,11 +29,31 @@ type ProxySourceS3ConfigT struct {
 	AccessKeyID     string `yaml:"accessKeyId"`
 	SecretAccessKey string `yaml:"secretAccessKey"`
 	Region          string `yaml:"region"`
-	Secure          bool   `yaml:"secure"`
 }
 
 type ProxySourceGCSConfigT struct {
-	CredentialsFile string `yaml:"credentialsFile"`
+	Endpoint          string `yaml:"endpoint"`
+	Base64Credentials string `yaml:"base64Credentials"`
+}
+
+// Modifications config
+
+type ProxyModifierConfigT struct {
+	Name   string                     `yaml:"name"`
+	Type   string                     `yaml:"type"`
+	Path   ProxyModifierPathConfigT   `yaml:"path"`
+	Header ProxyModifierHeaderConfigT `yaml:"header"`
+}
+
+type ProxyModifierPathConfigT struct {
+	AddPrefix    string `yaml:"addPrefix"`
+	RemovePrefix string `yaml:"removePrefix"`
+}
+
+type ProxyModifierHeaderConfigT struct {
+	Name   string `yaml:"name"`
+	Remove bool   `yaml:"remove"`
+	Value  string `yaml:"value"`
 }
 
 // Routing config
@@ -61,7 +65,22 @@ type ProxyRequestRoutingConfigT struct {
 }
 
 type ProxyRouteConfigT struct {
-	Modifications []string `yaml:"modifications"`
-	Source        string   `yaml:"source"`
-	Bucket        string   `yaml:"bucket"`
+	Source    string   `yaml:"source"`
+	Modifiers []string `yaml:"modifiers"`
+	Bucket    string   `yaml:"bucket"`
+}
+
+// Response reactions
+
+type ProxyRespReactionsConfigT struct {
+	Conditions []ProxyConditionConfigT `yaml:"conditions"`
+	Reactions  []ProxyReactionConfigT  `yaml:"reactions"`
+}
+
+type ProxyConditionConfigT struct {
+	Name string `yaml:"name"`
+}
+
+type ProxyReactionConfigT struct {
+	Name string `yaml:"name"`
 }

@@ -7,16 +7,8 @@ import (
 )
 
 type ObjectT struct {
-	Bucket string      `json:"bucket"`
-	Path   string      `json:"path"`
-	Info   ObjectInfoT `json:"-"`
-}
-
-type ObjectInfoT struct {
-	NotExistError bool
-	MD5           string
-	Size          int64
-	ContentType   string
+	Bucket string `json:"bucket"`
+	Path   string `json:"path"`
 }
 
 func (o *ObjectT) String() string {

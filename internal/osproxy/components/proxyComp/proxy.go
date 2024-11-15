@@ -5,28 +5,34 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
 	"osproxy/api/v1alpha5"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
+	"osproxy/internal/modifiers"
 	"osproxy/internal/objectstorage"
+	"osproxy/internal/objectstorage/managers"
 	"osproxy/internal/pools"
 	"osproxy/internal/utils"
 )
 
 type ProxyT struct {
-	config *v1alpha5.OSProxyConfigT
+	ctx    context.Context
 	log    logger.LoggerT
+	config *v1alpha5.OSProxyConfigT
 
-	actionPool *pools.ActionPoolT
-	ctx        context.Context
 	server     *http.Server
-	// objManager objectstorage.ObjectManagerI
+	actionPool *pools.ActionPoolT
 
-	sources map[string]objectstorage.ObjectManagerI
+	sources map[string]managers.ObjectManagerI
+	routes  map[string]routeT
+}
+
+type routeT struct {
+	source    *managers.ObjectManagerI
+	modifiers []modifiers.ModifierT
 }
 
 func NewProxy(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPoolT) (p ProxyT, err error) {
@@ -50,11 +56,9 @@ func NewProxy(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPoolT) (p
 		IdleTimeout:  30 * time.Second,
 	}
 
-	objManagers := objectstorage.GetManagers()
-	p.sources = map[string]objectstorage.ObjectManagerI{}
-	for srck, srcv := range p.config.Proxy.Sources {
-		p.sources[srck] = objManagers[srcv.Type]
-		err = p.sources[srck].Init(p.ctx, srcv)
+	p.sources = map[string]managers.ObjectManagerI{}
+	for _, srcv := range p.config.Proxy.Sources {
+		p.sources[srcv.Name], err = managers.GetManager(p.ctx, srcv)
 		if err != nil {
 			return p, err
 		}
@@ -85,11 +89,15 @@ func (p *ProxyT) getHealthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	req := r.Clone(p.ctx)
+	defer req.Body.Close()
+
 	var err error
 	logExtraFields := global.GetLogExtraFieldsProxy()
-	logExtraFields[global.LogFieldKeyExtraRequest] = utils.RequestString(r)
+	logExtraFields[global.LogFieldKeyExtraRequest] = utils.RequestString(req)
 
-	route, err := p.getRouteFromRequest(r)
+	route, err := p.getRouteFromRequest(req)
 	if err != nil {
 		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 
@@ -99,61 +107,37 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.modRequest(r, route.Modifications)
+	p.modRequest(req, route.Modifiers)
 	object := objectstorage.ObjectT{
 		Bucket: route.Bucket,
-		Path:   r.URL.Path,
+		Path:   req.URL.Path,
 	}
 	logExtraFields[global.LogFieldKeyExtraObject] = object.String()
 
-	objectResp, info, err := p.sources[route.Source].GetObject(object)
+	resp, err := p.sources[route.Source].GetObject(object)
 	if err != nil {
 		logExtraFields[global.LogFieldKeyExtraError] = err.Error()
-		if info.NotExistError {
-			p.requestResponseError(w, http.StatusNotFound, "Not Found")
-
-			logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusNotFound
-			p.log.Error("object does not exist", logExtraFields)
-
-			p.actionPool.Add(pools.ActionPoolRequestT{
-				Object: object,
-			})
-			p.log.Debug("add action in pool", logExtraFields)
-
-			return
-		}
-
 		logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusInternalServerError
 		p.log.Error("unable to get object", logExtraFields)
 		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
-	defer objectResp.Close()
+	defer resp.Body.Close()
+
 	p.log.Debug("success in get object reader", logExtraFields)
 
 	// Set headers before response body
-	for hk, hvs := range r.Header {
+	w.WriteHeader(http.StatusOK)
+	for hk, hvs := range resp.Header {
 		for _, hv := range hvs {
-			if hk != "Content-Type" && hk != "Content-Length" && hk != "Content-Disposition" {
-				w.Header().Set(hk, hv)
-			}
+			w.Header().Set(hk, hv)
 		}
 	}
-	contentLen := strconv.FormatInt(info.Size, 10)
-	w.Header().Set("Content-Type", info.ContentType)
-	w.Header().Set("Content-Length", contentLen)
 
-	if filename := r.URL.Query().Get("filename"); filename != "" {
-		contentDispositionHeaderVal := fmt.Sprintf("inline; filename=\"%s\"", filename)
-		w.Header().Set("Content-Disposition", contentDispositionHeaderVal)
-	}
-
-	w.WriteHeader(http.StatusOK)
-
-	logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusOK
-	logExtraFields[global.LogFieldKeyExtraContentLength] = contentLen
+	logExtraFields[global.LogFieldKeyExtraStatusCode] = resp.StatusCode
+	logExtraFields[global.LogFieldKeyExtraContentLength] = resp.Header.Get("Content-Length")
 	// Copy object data in response body
-	dataBytes, dataErr := io.Copy(w, objectResp)
+	dataBytes, dataErr := io.Copy(w, resp.Body)
 	logExtraFields[global.LogFieldKeyExtraDataBytes] = dataBytes
 	if dataErr != nil {
 		logExtraFields[global.LogFieldKeyExtraError] = dataErr.Error()

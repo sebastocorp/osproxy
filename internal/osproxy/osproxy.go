@@ -34,9 +34,9 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 		}
 	}
 
-	for _, mod := range o.config.Proxy.Modifications {
+	for _, mod := range o.config.Proxy.RequestModifiers {
 		if !slices.Contains([]string{"path", "header"}, mod.Type) {
-			err = fmt.Errorf("modifications must be one of this types %v", []string{"path", "header"})
+			err = fmt.Errorf("modifiers must be one of this types %v", []string{"path", "header"})
 			return o, err
 		}
 	}
@@ -52,14 +52,28 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 	}
 
 	for _, route := range o.config.Proxy.RequestRouting.Routes {
-		if _, ok := o.config.Proxy.Sources[route.Source]; !ok {
+		srcFound := false
+		for _, sourcev := range o.config.Proxy.Sources {
+			if sourcev.Name == route.Source {
+				srcFound = true
+				break
+			}
+		}
+		if !srcFound {
 			err = fmt.Errorf("unexisting source reference in routes config")
 			return o, err
 		}
 
-		for _, mod := range route.Modifications {
-			if _, ok := o.config.Proxy.Modifications[mod]; !ok {
-				err = fmt.Errorf("unexisting modification reference in routes config")
+		for _, routeModv := range route.Modifiers {
+			modFound := false
+			for _, modv := range o.config.Proxy.RequestModifiers {
+				if modv.Name == routeModv {
+					modFound = true
+					break
+				}
+			}
+			if !modFound {
+				err = fmt.Errorf("unexisting modifier reference in routes config")
 				return o, err
 			}
 		}
