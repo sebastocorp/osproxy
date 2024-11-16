@@ -9,8 +9,8 @@ import (
 	"osproxy/api/v1alpha5"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
-	"osproxy/internal/objectstorage"
 	"osproxy/internal/pools"
+	"osproxy/internal/sources"
 )
 
 const (
@@ -22,7 +22,7 @@ type ActionWorkerT struct {
 	log    logger.LoggerT
 
 	actionPool  *pools.ActionPoolT
-	actionFuncs map[string]func(objectstorage.ObjectT) error
+	actionFuncs map[string]func(sources.ObjectT) error
 }
 
 func NewActionWorker(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPoolT) (aw ActionWorkerT, err error) {
@@ -33,7 +33,7 @@ func NewActionWorker(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPo
 	logCommon[global.LogFieldKeyCommonComponent] = global.LogFieldValueComponentActionWorker
 	aw.log = logger.NewLogger(context.Background(), logger.GetLevel(aw.config.ActionWorker.Loglevel), logCommon)
 
-	aw.actionFuncs = map[string]func(objectstorage.ObjectT) error{
+	aw.actionFuncs = map[string]func(sources.ObjectT) error{
 		actionTypeRequest: aw.makeRequestAction,
 	}
 
@@ -53,7 +53,6 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 	emptyPoolLog := true
 	for {
 		logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
-		logExtraFields[global.LogFieldKeyExtraObject] = global.LogFieldValueDefault
 
 		pool := a.actionPool.Get()
 
@@ -71,7 +70,6 @@ func (a *ActionWorkerT) Run(wg *sync.WaitGroup) {
 			a.actionPool.Remove(key)
 
 			logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
-			logExtraFields[global.LogFieldKeyExtraObject] = request.Object.String()
 			err := a.actionFuncs[a.config.ActionWorker.Type](request.Object)
 			if err != nil {
 				logExtraFields[global.LogFieldKeyExtraError] = err.Error()

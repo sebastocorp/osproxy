@@ -36,17 +36,11 @@ proxy:
       bucket: bucket-name
   
   responseReactions:
-    conditions:
-    - name: condition-example
-      type: code # code|header
-      code: 404
-      header:
-        key: "X-Real-Ip"
-        value: "127.0.0.1"
-    reactions:
-    - name: reaction-example
-      type: request # failover
-      conditions: ["condition-example"]
+  - name: reaction-example
+    type: request # failover
+    condition:
+      key: "X-Real-Ip" # <header-key>|:status:|:host:
+      value: "127.0.0.1"
 
 actionWorker:
   loglevel: "info"

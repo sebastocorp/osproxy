@@ -4,21 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
 	"osproxy/api/v1alpha5"
-	"osproxy/internal/objectstorage"
 )
 
 type ObjectManagerI interface {
 	Init(ctx context.Context, config v1alpha5.ProxySourceConfigT) (err error)
-	GetObject(obj objectstorage.ObjectT) (resp *http.Response, err error)
-}
-
-func GetManagers() map[string]ObjectManagerI {
-	managers := map[string]ObjectManagerI{
-		"s3":  &S3ManagerT{},
-		"gcs": &GCSManagerT{},
-	}
-	return managers
+	GetObject(r *http.Request, bucket string) (resp *http.Response, err error)
 }
 
 func GetManager(ctx context.Context, config v1alpha5.ProxySourceConfigT) (manager ObjectManagerI, err error) {
@@ -30,6 +22,10 @@ func GetManager(ctx context.Context, config v1alpha5.ProxySourceConfigT) (manage
 	case "gcs":
 		{
 			manager = &GCSManagerT{}
+		}
+	case "http":
+		{
+			manager = &HTTPManagerT{}
 		}
 	default:
 		{

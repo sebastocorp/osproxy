@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"osproxy/api/v1alpha5"
-	"osproxy/internal/objectstorage"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -48,15 +47,39 @@ func (m *S3ManagerT) Init(ctx context.Context, config v1alpha5.ProxySourceConfig
 	return err
 }
 
-func (m *S3ManagerT) GetObject(obj objectstorage.ObjectT) (resp *http.Response, err error) {
-	objectsURL := fmt.Sprintf("%s/%s/%s", m.endpoint, obj.Bucket, obj.Path)
+// func (m *S3ManagerT) GetObject(obj sources.ObjectT) (resp *http.Response, err error) {
+// 	objectsURL := fmt.Sprintf("%s/%s/%s", m.endpoint, obj.Bucket, obj.Path)
 
-	req, err := http.NewRequest(http.MethodGet, objectsURL, nil)
+// 	req, err := http.NewRequest(http.MethodGet, objectsURL, nil)
+// 	if err != nil {
+// 		return resp, err
+// 	}
+// 	req.Header.Set("x-amz-content-sha256", m.emptyPayloadHash)
+
+// 	signingTime := time.Now().UTC()
+// 	err = m.signer.SignHTTP(context.Background(), m.creds, req, m.emptyPayloadHash, "s3", m.region, signingTime)
+// 	if err != nil {
+// 		return resp, err
+// 	}
+
+// 	resp, err = m.client.Do(req)
+
+// 	return resp, err
+// }
+
+func (m *S3ManagerT) GetObject(r *http.Request, bucket string) (resp *http.Response, err error) {
+	req, err := http.NewRequest(r.Method, fmt.Sprintf("%s/%s%s", m.endpoint, bucket, r.URL.Path), r.Body)
 	if err != nil {
 		return resp, err
 	}
-	req.Header.Set("x-amz-content-sha256", m.emptyPayloadHash)
 
+	for hk, hvs := range r.Header {
+		for _, hv := range hvs {
+			req.Header.Set(hk, hv)
+		}
+	}
+
+	req.Header.Set("x-amz-content-sha256", m.emptyPayloadHash)
 	signingTime := time.Now().UTC()
 	err = m.signer.SignHTTP(context.Background(), m.creds, req, m.emptyPayloadHash, "s3", m.region, signingTime)
 	if err != nil {

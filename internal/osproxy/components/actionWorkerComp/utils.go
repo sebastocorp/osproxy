@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"osproxy/internal/sources"
 	"time"
-
-	"osproxy/internal/objectstorage"
 )
 
-func (a *ActionWorkerT) makeRequestAction(Object objectstorage.ObjectT) (err error) {
+func (a *ActionWorkerT) makeRequestAction(Object sources.ObjectT) (err error) {
 	bodyBytes, err := json.Marshal(Object)
 	if err != nil {
 		return err

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"osproxy/api/v1alpha5"
-	"osproxy/internal/objectstorage"
 	"strconv"
 	"strings"
 )
@@ -55,7 +54,7 @@ func (p *ProxyT) getRouteFromRequest(r *http.Request) (route v1alpha5.ProxyRoute
 func (p *ProxyT) modRequest(r *http.Request, modifications []string) (err error) {
 	r.URL.Path = strings.SplitN(r.URL.Path, "?", 2)[0]
 	for _, modn := range modifications {
-		mod := p.config.Proxy.RequestModifiers[modn]
+		mod := p.requestModifiers[modn]
 		switch mod.Type {
 		case "path":
 			{
@@ -72,42 +71,4 @@ func (p *ProxyT) modRequest(r *http.Request, modifications []string) (err error)
 	}
 
 	return err
-}
-
-func (p *ProxyT) GetObjectFromRequest(r *http.Request) (object objectstorage.ObjectT, err error) {
-	// Get object path
-	originalObjectPath := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "?")[0]
-
-	var mod v1alpha5.ProxyRouteConfigT
-	var found bool = false
-	switch p.config.Proxy.RequestRouting.MatchType {
-	case "host":
-		{
-			mod, found = p.config.Proxy.RequestRouting.Routes[r.Host]
-		}
-	case "headerValue":
-		{
-			mod, found = p.config.Proxy.RequestRouting.Routes[r.Header.Get(p.config.Proxy.RequestRouting.HeaderKey)]
-
-		}
-	case "pathPrefix":
-		{
-			for prefix, objMod := range p.config.Proxy.RequestRouting.Routes {
-				if strings.HasPrefix(originalObjectPath, prefix) {
-					mod = objMod
-					found = true
-					break
-				}
-			}
-		}
-	}
-
-	if !found {
-		err = fmt.Errorf("routing config not provided for this request")
-		return object, err
-	}
-
-	// object = setObjectByBucketObject(originalObjectPath, mod)
-	_ = mod
-	return object, err
 }

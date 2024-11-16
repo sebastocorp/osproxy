@@ -10,5 +10,21 @@ const (
 )
 
 func RequestString(r *http.Request) string {
-	return fmt.Sprintf("{url: '%s', method: '%s'}", r.URL.String(), r.Method)
+	headers := "{"
+	for hk, hvs := range r.Header {
+		headers += "(" + hk + fmt.Sprintf("%v", hvs) + ")"
+
+	}
+	headers += "}"
+	return fmt.Sprintf("{method: '%s', url: '%s', headers: '%s'}", r.Method, r.URL.String(), headers)
+}
+
+func ResponseString(r *http.Response) string {
+	headers := "{"
+	for hk, hvs := range r.Header {
+		headers += "(" + hk + fmt.Sprintf("%v", hvs) + ")"
+
+	}
+	headers += "}"
+	return fmt.Sprintf("{status: '%s', code: '%d', headers: '%s'}", r.Status, r.StatusCode, headers)
 }

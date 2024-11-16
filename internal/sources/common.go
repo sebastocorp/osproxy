@@ -1,4 +1,4 @@
-package objectstorage
+package sources
 
 import (
 	"crypto/md5"

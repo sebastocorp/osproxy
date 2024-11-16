@@ -12,15 +12,14 @@ const (
 	LogFieldKeyCommonService   = "service"
 	LogFieldKeyCommonComponent = "component"
 
-	LogFieldKeyExtraError  = "error"
-	LogFieldKeyExtraObject = "object"
+	LogFieldKeyExtraError = "error"
 
 	LogFieldKeyExtraActionType = "action_type"
 
-	LogFieldKeyExtraRequest       = "request"
-	LogFieldKeyExtraStatusCode    = "status_code"
-	LogFieldKeyExtraContentLength = "content_length"
-	LogFieldKeyExtraDataBytes     = "data_bytes"
+	LogFieldKeyExtraRequest    = "request"
+	LogFieldKeyExtraResponse   = "response"
+	LogFieldKeyExtraStatusCode = "code"
+	LogFieldKeyExtraDataBytes  = "bytes"
 
 	LogFieldValueDefault               = "none"
 	LogFieldValueService               = "osproxy"
@@ -37,14 +36,12 @@ func GetLogCommonFields() map[string]any {
 
 func GetLogExtraFieldsProxy() map[string]any {
 	return map[string]any{
-		LogFieldKeyExtraError:  LogFieldValueDefault,
-		LogFieldKeyExtraObject: LogFieldValueDefault,
+		LogFieldKeyExtraError: LogFieldValueDefault,
 	}
 }
 
 func GetLogExtraFieldsActionWorker() map[string]any {
 	return map[string]any{
-		LogFieldKeyExtraError:  LogFieldValueDefault,
-		LogFieldKeyExtraObject: LogFieldValueDefault,
+		LogFieldKeyExtraError: LogFieldValueDefault,
 	}
 }

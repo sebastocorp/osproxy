@@ -5,23 +5,24 @@ package v1alpha5
 //--------------------------------------------------------------
 
 type ProxyConfigT struct {
-	Loglevel         string                     `yaml:"loglevel"`
-	Protocol         string                     `yaml:"protocol"`
-	Address          string                     `yaml:"address"`
-	Port             string                     `yaml:"port"`
-	Sources          []ProxySourceConfigT       `yaml:"sources"`
-	RequestModifiers []ProxyModifierConfigT     `yaml:"requestModifiers"`
-	RequestRouting   ProxyRequestRoutingConfigT `yaml:"requestRouting"`
-	RespReactions    ProxyRespReactionsConfigT  `yaml:"responseReactions"`
+	Loglevel         string                      `yaml:"loglevel"`
+	Protocol         string                      `yaml:"protocol"`
+	Address          string                      `yaml:"address"`
+	Port             string                      `yaml:"port"`
+	Sources          []ProxySourceConfigT        `yaml:"sources"`
+	RequestModifiers []ProxyModifierConfigT      `yaml:"requestModifiers"`
+	RequestRouting   ProxyRequestRoutingConfigT  `yaml:"requestRouting"`
+	RespReactions    []ProxyRespReactionsConfigT `yaml:"responseReactions"`
 }
 
 // Sources config
 
 type ProxySourceConfigT struct {
-	Name string                `yaml:"name"`
-	Type string                `yaml:"type"`
-	S3   ProxySourceS3ConfigT  `yaml:"s3,omitempty"`
-	GCS  ProxySourceGCSConfigT `yaml:"gcs,omitempty"`
+	Name string                 `yaml:"name"`
+	Type string                 `yaml:"type"`
+	S3   ProxySourceS3ConfigT   `yaml:"s3,omitempty"`
+	GCS  ProxySourceGCSConfigT  `yaml:"gcs,omitempty"`
+	HTTP ProxySourceHTTPConfigT `yaml:"http,omitempty"`
 }
 
 type ProxySourceS3ConfigT struct {
@@ -34,6 +35,10 @@ type ProxySourceS3ConfigT struct {
 type ProxySourceGCSConfigT struct {
 	Endpoint          string `yaml:"endpoint"`
 	Base64Credentials string `yaml:"base64Credentials"`
+}
+
+type ProxySourceHTTPConfigT struct {
+	Endpoint string `yaml:"endpoint"`
 }
 
 // Modifications config
@@ -73,14 +78,18 @@ type ProxyRouteConfigT struct {
 // Response reactions
 
 type ProxyRespReactionsConfigT struct {
-	Conditions []ProxyConditionConfigT `yaml:"conditions"`
-	Reactions  []ProxyReactionConfigT  `yaml:"reactions"`
+	Name                string                              `yaml:"name"`
+	Type                string                              `yaml:"type"`
+	Condition           ProxyResReactConditionConfigT       `yaml:"condition"`
+	ResponseSustitution ProxyResReactRespSustitutionConfigT `yaml:"responseSustitution"`
 }
 
-type ProxyConditionConfigT struct {
-	Name string `yaml:"name"`
+type ProxyResReactConditionConfigT struct {
+	Key   string `yaml:"key"`
+	Value string `yaml:"value"`
 }
 
-type ProxyReactionConfigT struct {
-	Name string `yaml:"name"`
+type ProxyResReactRespSustitutionConfigT struct {
+	Endpoint string `yaml:"endpoint"`
+	Source   string `yaml:"source"`
 }
