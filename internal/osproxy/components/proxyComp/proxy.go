@@ -1,11 +1,14 @@
 package proxyComp
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +16,7 @@ import (
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
 	"osproxy/internal/pools"
+	"osproxy/internal/sources"
 	"osproxy/internal/sources/managers"
 	"osproxy/internal/utils"
 )
@@ -132,17 +136,46 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		case ":status:":
 			{
 				if reacv.Condition.Value == strconv.Itoa(resp.StatusCode) {
-					if reacv.Type == "ResponseSustitution" {
-						resp.Body.Close()
-						resp, err = p.sources[reacv.ResponseSustitution.Source].GetObject(r, route.Bucket)
-						if err != nil {
-							logExtraFields[global.LogFieldKeyExtraError] = err.Error()
-							logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusInternalServerError
-							p.log.Error("unable to get object", logExtraFields)
-							p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
-							return
+					switch reacv.Type {
+					case "ResponseSustitution":
+						{
+
+							resp2, err := p.sources[reacv.ResponseSustitution.Source].GetObject(r, route.Bucket)
+							if err != nil {
+								logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+								p.log.Error("unable to get object", logExtraFields)
+								logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+								continue
+							}
+							resp.Body.Close()
+							resp = resp2
+							defer resp2.Body.Close()
 						}
-						defer resp.Body.Close()
+					case "PostObject":
+						{
+							object := sources.ObjectT{
+								Bucket: route.Bucket,
+								Path:   strings.TrimSuffix(req.URL.Path, "/"),
+							}
+
+							data, err := json.Marshal(object)
+							if err != nil {
+								logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+								p.log.Error("unable to get object json", logExtraFields)
+								logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+								continue
+							}
+
+							http.DefaultClient.Timeout = 5 * time.Second
+							respPost, err := http.Post(reacv.PostObject.Endpoint, "application/json", bytes.NewBuffer(data))
+							if err != nil {
+								logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+								p.log.Error("unable to post object json", logExtraFields)
+								logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+								continue
+							}
+							respPost.Body.Close()
+						}
 					}
 				}
 			}

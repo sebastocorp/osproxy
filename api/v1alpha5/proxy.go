@@ -82,6 +82,7 @@ type ProxyRespReactionsConfigT struct {
 	Type                string                              `yaml:"type"`
 	Condition           ProxyResReactConditionConfigT       `yaml:"condition"`
 	ResponseSustitution ProxyResReactRespSustitutionConfigT `yaml:"responseSustitution"`
+	PostObject          ProxyResReactPostObjectConfigT      `yaml:"postObject"`
 }
 
 type ProxyResReactConditionConfigT struct {
@@ -92,4 +93,8 @@ type ProxyResReactConditionConfigT struct {
 type ProxyResReactRespSustitutionConfigT struct {
 	Endpoint string `yaml:"endpoint"`
 	Source   string `yaml:"source"`
+}
+
+type ProxyResReactPostObjectConfigT struct {
+	Endpoint string `yaml:"endpoint"`
 }
