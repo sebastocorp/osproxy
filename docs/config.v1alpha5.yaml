@@ -1,36 +1,53 @@
 proxy:
   loglevel: "info"
+  protocol: ""
   address: ""
   port: "8080"
   sources:
-    "example-s3":
-      type: s3
-      s3:
-        endpoint: $OSPROXY_S3_ENDPOINT
-        accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
-        secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
-        region: $OSPROXY_S3_REGION
-        secure: true
-      # gcs:
-      #   credentialsFile: exampre-gcs-credentials.json
-  modifications:
-    "example-mod":
-      type: path # path|header
-      path:
-        removePrefix: "path/to/remove/"
-        addPrefix: "path/to/remove/"
-      # header:
-      #   name: "X-Real-Ip"
-      #   remove: false
-      #   value: "0.0.0.0"
+  - name: s3-example
+    type: s3
+    s3:
+      endpoint: $OSPROXY_S3_ENDPOINT
+      accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
+      secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
+      region: $OSPROXY_S3_REGION
+      secure: true
+    # gcs:
+    #   endpoint: https://storage.googleapis.com
+    #   base64Credentials: exampre-gcs-credentials.json
+    # http:
+    #   endpoint: http://osproxy2.example.com:8080
+  requestModifiers:
+  - name: req-mod-example
+    type: path # path|header
+    path:
+      removePrefix: "path/to/remove/"
+      addPrefix: "path/to/remove/"
+    # header:
+    #   name: "X-Real-Ip"
+    #   remove: false
+    #   value: "0.0.0.0"
+  
   requestRouting:
     matchType: pathPrefix # pathPrefix|host|headerValue
-    headerKey: "X-Real-Ip"
+    headerKey: X-Real-Ip
     routes:
       "path/prefix/":
-        source: example-s3
-        modifications: ["example-mod"]
+        source: s3-example
+        modifiers: ["req-mod-example"]
         bucket: bucket-name
+  
+  responseReactions:
+  - name: reaction-example
+    type: ResponseSustitution # PostObject
+    condition:
+      key: "X-Real-Ip" # <header-key>|:status:|:host:
+      value: "127.0.0.1"
+    responseSustitution:
+      source: gcs-example
+    # postObject:
+    #   endpoint: http://osproxy3.example.com:8080
+
 actionWorker:
   loglevel: "info"
   type: request

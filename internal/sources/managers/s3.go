@@ -26,6 +26,7 @@ type S3ManagerT struct {
 
 func (m *S3ManagerT) Init(ctx context.Context, config v1alpha5.ProxySourceConfigT) (err error) {
 	m.emptyPayloadHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	m.client = &http.Client{}
 	m.client.Timeout = 10 * time.Second
 	m.signer = v4.NewSigner()
 

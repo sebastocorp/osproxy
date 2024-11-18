@@ -197,7 +197,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Connection", "close")
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(resp.StatusCode)
 
 	logExtraFields[global.LogFieldKeyExtraResponse] = utils.ResponseString(resp)
 	// Copy object data in response body

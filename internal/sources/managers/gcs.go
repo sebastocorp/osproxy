@@ -14,7 +14,7 @@ import (
 )
 
 type GCSManagerT struct {
-	client   http.Client
+	client   *http.Client
 	creds    *google.Credentials
 	endpoint string
 }
@@ -34,6 +34,7 @@ func (m *GCSManagerT) Init(ctx context.Context, config v1alpha5.ProxySourceConfi
 		return err
 	}
 
+	m.client = &http.Client{}
 	m.client.Timeout = 10 * time.Second
 	credsBytes, err := base64.RawStdEncoding.DecodeString(config.GCS.Base64Credentials)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 )
 
 type HTTPManagerT struct {
-	client   http.Client
+	client   *http.Client
 	endpoint string
 }
 
@@ -26,6 +26,7 @@ func (m *HTTPManagerT) Init(ctx context.Context, config v1alpha5.ProxySourceConf
 		return err
 	}
 
+	m.client = &http.Client{}
 	m.client.Timeout = 10 * time.Second
 
 	return err

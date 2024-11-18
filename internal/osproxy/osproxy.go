@@ -28,8 +28,8 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 	//--------------------------------------------------------------
 
 	for _, src := range o.config.Proxy.Sources {
-		if !slices.Contains([]string{"s3", "gcs"}, src.Type) {
-			err = fmt.Errorf("sources must be one of this types %v", []string{"s3", "gcs"})
+		if !slices.Contains([]string{"s3", "gcs", "http"}, src.Type) {
+			err = fmt.Errorf("sources must be one of this types %v", []string{"s3", "gcs", "http"})
 			return o, err
 		}
 	}

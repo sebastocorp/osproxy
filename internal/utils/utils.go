@@ -16,7 +16,7 @@ func RequestString(r *http.Request) string {
 
 	}
 	headers += "}"
-	return fmt.Sprintf("{method: '%s', url: '%s', headers: '%s'}", r.Method, r.URL.String(), headers)
+	return fmt.Sprintf("{method: '%s', host: '%s', path: '%s', headers: '%s'}", r.Method, r.Host, r.URL.Path, headers)
 }
 
 func ResponseString(r *http.Response) string {

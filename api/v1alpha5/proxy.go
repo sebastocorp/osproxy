@@ -91,8 +91,7 @@ type ProxyResReactConditionConfigT struct {
 }
 
 type ProxyResReactRespSustitutionConfigT struct {
-	Endpoint string `yaml:"endpoint"`
-	Source   string `yaml:"source"`
+	Source string `yaml:"source"`
 }
 
 type ProxyResReactPostObjectConfigT struct {
