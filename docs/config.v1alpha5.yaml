@@ -47,10 +47,3 @@ proxy:
       source: gcs-example
     # postObject:
     #   endpoint: http://osproxy3.example.com:8080
-
-actionWorker:
-  loglevel: "info"
-  type: request
-  scrapeInterval: 2s
-  request:
-    url: "http://example.com:8080/transfer"

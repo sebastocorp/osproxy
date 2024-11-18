@@ -1,4 +1,4 @@
-package proxyComp
+package proxycomp
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 	"osproxy/api/v1alpha5"
 	"osproxy/internal/global"
 	"osproxy/internal/logger"
-	"osproxy/internal/pools"
 	"osproxy/internal/sources"
 	"osproxy/internal/sources/managers"
 	"osproxy/internal/utils"
@@ -26,20 +25,18 @@ type ProxyT struct {
 	log    logger.LoggerT
 	config *v1alpha5.OSProxyConfigT
 
-	server     *http.Server
-	actionPool *pools.ActionPoolT
+	server *http.Server
 
 	sources          map[string]managers.ObjectManagerI
 	requestModifiers map[string]*v1alpha5.ProxyModifierConfigT
 }
 
-func NewProxy(config *v1alpha5.OSProxyConfigT, actionPool *pools.ActionPoolT) (p ProxyT, err error) {
+func NewProxy(config *v1alpha5.OSProxyConfigT) (p ProxyT, err error) {
 	p.config = config
-	p.actionPool = actionPool
 	p.ctx = context.Background()
 
 	logCommon := global.GetLogCommonFields()
-	logCommon[global.LogFieldKeyCommonComponent] = global.LogFieldValueComponentProxy
+	global.SetLogExtraField(logCommon, global.LogFieldKeyCommonComponent, global.LogFieldValueComponentProxy)
 	p.log = logger.NewLogger(p.ctx, logger.GetLevel(p.config.Proxy.Loglevel), logCommon)
 
 	mux := http.NewServeMux()
@@ -76,7 +73,7 @@ func (p *ProxyT) Run(wg *sync.WaitGroup) {
 
 	err := p.server.ListenAndServe()
 	if err != nil {
-		logExtra[global.LogFieldKeyExtraError] = err.Error()
+		global.SetLogExtraField(logExtra, global.LogFieldKeyExtraError, err.Error())
 		p.log.Error("unable to serve proxy", logExtra)
 	}
 }
@@ -98,14 +95,14 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	logExtraFields := global.GetLogExtraFieldsProxy()
-	logExtraFields[global.LogFieldKeyExtraRequest] = utils.RequestString(req)
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest, utils.RequestString(req))
 
 	route, err := p.getRouteFromRequest(req)
 	if err != nil {
-		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
+		logResp := p.requestResponseError(w, http.StatusInternalServerError)
 
-		logExtraFields[global.LogFieldKeyExtraError] = err.Error()
-		logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusInternalServerError
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
 		p.log.Error("unable to process request", logExtraFields)
 		return
 	}
@@ -114,23 +111,24 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := p.sources[route.Source].GetObject(req, route.Bucket)
 	if err != nil {
-		logExtraFields[global.LogFieldKeyExtraError] = err.Error()
-		logExtraFields[global.LogFieldKeyExtraStatusCode] = http.StatusInternalServerError
+		logResp := p.requestResponseError(w, http.StatusInternalServerError)
+
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
 		p.log.Error("unable to get object", logExtraFields)
-		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 	defer resp.Body.Close()
 
 	p.log.Debug("success in get object reader", logExtraFields)
 
-	for reaci, reacv := range p.config.Proxy.RespReactions {
-		_ = reaci
+	for _, reacv := range p.config.Proxy.RespReactions {
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraReaction, fmt.Sprintf("{name: '%s', type: '%s'}", reacv.Name, reacv.Type))
 		switch reacv.Condition.Key {
 		case ":host:":
 			{
 				if resp.Request.Host == reacv.Condition.Value {
-					p.log.Error("respopnse reaction with host not implemented", logExtraFields)
+					p.log.Error("response reaction with host not implemented", logExtraFields)
 				}
 			}
 		case ":status:":
@@ -139,12 +137,11 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 					switch reacv.Type {
 					case "ResponseSustitution":
 						{
-
 							resp2, err := p.sources[reacv.ResponseSustitution.Source].GetObject(r, route.Bucket)
 							if err != nil {
-								logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
 								p.log.Error("unable to get object", logExtraFields)
-								logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
 								continue
 							}
 							resp.Body.Close()
@@ -160,18 +157,18 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 							data, err := json.Marshal(object)
 							if err != nil {
-								logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
 								p.log.Error("unable to get object json", logExtraFields)
-								logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
 								continue
 							}
 
 							http.DefaultClient.Timeout = 5 * time.Second
 							respPost, err := http.Post(reacv.PostObject.Endpoint, "application/json", bytes.NewBuffer(data))
 							if err != nil {
-								logExtraFields[global.LogFieldKeyExtraError] = err.Error()
+								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
 								p.log.Error("unable to post object json", logExtraFields)
-								logExtraFields[global.LogFieldKeyExtraError] = global.LogFieldValueDefault
+								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
 								continue
 							}
 							respPost.Body.Close()
@@ -183,11 +180,12 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 			{
 				headerValue := resp.Header.Get(reacv.Condition.Key)
 				if headerValue == reacv.Condition.Value {
-					p.log.Error("respopnse reaction with headers not implemented", logExtraFields)
+					p.log.Error("response reaction with headers not implemented", logExtraFields)
 				}
 			}
 		}
 	}
+	global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraReaction)
 
 	// Set headers before response body
 	for hk, hvs := range resp.Header {
@@ -199,14 +197,13 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 
-	logExtraFields[global.LogFieldKeyExtraResponse] = utils.ResponseString(resp)
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, utils.ResponseString(resp))
 	// Copy object data in response body
 	dataBytes, dataErr := io.Copy(w, resp.Body)
-	logExtraFields[global.LogFieldKeyExtraDataBytes] = dataBytes
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraDataBytes, dataBytes)
 	if dataErr != nil {
-		logExtraFields[global.LogFieldKeyExtraError] = dataErr.Error()
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, dataErr.Error())
 		p.log.Error("unable to copy data", logExtraFields)
-		p.requestResponseError(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 

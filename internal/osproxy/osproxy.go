@@ -6,15 +6,12 @@ import (
 	"sync"
 
 	"osproxy/api/v1alpha5"
-	"osproxy/internal/osproxy/components/actionWorkerComp"
-	"osproxy/internal/osproxy/components/proxyComp"
-	"osproxy/internal/pools"
+	"osproxy/internal/osproxy/components/proxycomp"
 )
 
 type OSProxyT struct {
-	config       v1alpha5.OSProxyConfigT
-	proxy        proxyComp.ProxyT
-	actionWorker actionWorkerComp.ActionWorkerT
+	config v1alpha5.OSProxyConfigT
+	proxy  proxycomp.ProxyT
 }
 
 func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
@@ -82,14 +79,8 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 	//--------------------------------------------------------------
 	// Create components
 	//--------------------------------------------------------------
-	actionPool := pools.NewActionPool(o.config.ActionWorker.PoolCapacity)
 
-	o.proxy, err = proxyComp.NewProxy(&o.config, actionPool)
-	if err != nil {
-		return o, err
-	}
-
-	o.actionWorker, err = actionWorkerComp.NewActionWorker(&o.config, actionPool)
+	o.proxy, err = proxycomp.NewProxy(&o.config)
 	if err != nil {
 		return o, err
 	}
@@ -99,10 +90,9 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 
 func (o *OSProxyT) Run() (err error) {
 	osWg := sync.WaitGroup{}
-	osWg.Add(2)
+	osWg.Add(1)
 
 	go o.proxy.Run(&osWg)
-	go o.actionWorker.Run(&osWg)
 
 	osWg.Wait()
 

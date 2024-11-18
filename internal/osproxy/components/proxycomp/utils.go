@@ -1,21 +1,36 @@
-package proxyComp
+package proxycomp
 
 import (
 	"fmt"
 	"net/http"
 	"osproxy/api/v1alpha5"
+	"osproxy/internal/utils"
 	"strconv"
 	"strings"
 )
 
-func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatusCode int, respMessage string) {
-	respMessage = fmt.Sprintf("%d %s\n", respStatusCode, respMessage)
+func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatusCode int) string {
+	respMessage := fmt.Sprintf("%d %s", respStatusCode, http.StatusText(respStatusCode))
+
+	respError := &http.Response{
+		Header:     http.Header{},
+		StatusCode: respStatusCode,
+		Status:     respMessage,
+	}
+
+	respError.Header.Set("Content-Type", "text/plain")
+	respError.Header.Set("Content-Length", strconv.Itoa(len(respMessage)))
 
 	// response to user request
-	respWriter.Header().Set("Content-Type", "text/plain")
-	respWriter.Header().Set("Content-Length", strconv.Itoa(len(respMessage)))
+	for hk, hvs := range respError.Header {
+		for _, hv := range hvs {
+			respWriter.Header().Set(hk, hv)
+		}
+	}
 	respWriter.WriteHeader(respStatusCode)
-	respWriter.Write([]byte(respMessage))
+	respWriter.Write([]byte(respError.Status))
+
+	return utils.ResponseString(respError)
 }
 
 func (p *ProxyT) getRouteFromRequest(r *http.Request) (route v1alpha5.ProxyRouteConfigT, err error) {
