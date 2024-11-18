@@ -24,47 +24,67 @@ They are described in the following table:
 ```console
 osproxy run \
     --log-level=info
-    --config="./hitman.yaml"
+    --config="./config.yaml"
 ```
 
 ### Configuration
 
 Current configuration version: `v1alpha1`
 
-#### Transfer Service Parameters
+#### Proxy Service Parameters
 
 Configuration to the transfer service to call in case of not found the object
 
 | Name   | Default | Description |
 |:---    |:---     |:---         |
-| `transferService.host`     | `""` |  |
-| `transferService.port`     | `""` |  |
-| `transferService.endpoint` | `""` |  |
+| `proxy.loglevel`                 | `""`               |  |
+| `proxy.protocol`                 | `""`               |  |
+| `proxy.address`                  | `""`               |  |
+| `proxy.port`                     | `""`               |  |
+| `proxy.sources`                  | `[]source`         |  |
+| `proxy.requestModifiers`         | `[]modifier`       |  |
+| `proxy.responceReactions`        | `[]reaction`       |  |
+| `proxy.requestRouting.matchType` | `""`               |  |
+| `proxy.requestRouting.headerKey` | `""`               |  |
+| `proxy.requestRouting.routes`    | `map[string]route` |  |
 
-#### Object Storage Config Parameters
-
-Configuration to the backend object storage service
-
-| Name   | Default | Description |
-|:---    |:---     |:---         |
-| `osConfig.s3.endpoint`        | `""` |  |
-| `osConfig.s3.accessKeyId`     | `""` |  |
-| `osConfig.s3.secretAccessKey` | `""` |  |
-
-#### Relation Parameters
+#### Source config Parameters
 
 Configuration to the backend object storage service
 
 | Name   | Default | Description |
 |:---    |:---     |:---         |
-| `relation.type`                                      | `""` |  |
-| `relation.buckets`                                   | `""` |  |
-| `relation.buckets.<value>.frontend.bucketName`       | `""` |  |
-| `relation.buckets.<value>.frontend.removePathPrefix` | `""` |  |
-| `relation.buckets.<value>.frontend.addPathPrefix`    | `""` |  |
-| `relation.buckets.<value>.backend.bucketName`        | `""` |  |
-| `relation.buckets.<value>.backend.removePathPrefix`  | `""` |  |
-| `relation.buckets.<value>.backend.addPathPrefix`     | `""` |  |
+| `name`                  | `""` |  |
+| `type`                  | `""` |  |
+| `s3.endpoint`           | `""` |  |
+| `s3.accessKeyId`        | `""` |  |
+| `s3.secretAccessKey`    | `""` |  |
+| `s3.region`             | `""` |  |
+| `gcs.endpoint`          | `""` |  |
+| `gcs.base64Credentials` | `""` |  |
+| `http.endpoint`         | `""` |  |
+
+#### Modifier config Parameters
+
+Configuration to the backend object storage service
+
+| Name   | Default | Description |
+|:---    |:---     |:---         |
+| `name`              | `""` |  |
+| `type`              | `""` |  |
+| `path.removePrefix` | `""` |  |
+| `path.addPrefix`    | `""` |  |
+| `header.name`       | `""` |  |
+| `header.remove`     | `""` |  |
+| `header.value`      | `""` |  |
+
+#### Reaction config Parameters
+
+TODO
+
+#### Route config Parameters
+
+TODO
 
 ## How to deploy
 
