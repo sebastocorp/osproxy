@@ -14,50 +14,45 @@ const (
 
 	LogFieldKeyExtraError = "error"
 
-	LogFieldKeyExtraActionType = "action_type"
-
 	LogFieldKeyExtraRequest   = "request"
+	LogFieldKeyExtraRequestId = "request_id"
 	LogFieldKeyExtraResponse  = "response"
 	LogFieldKeyExtraReaction  = "reaction"
 	LogFieldKeyExtraDataBytes = "bytes"
 
-	LogFieldValueDefault               = "none"
-	LogFieldValueService               = "osproxy"
-	LogFieldValueComponentProxy        = "Proxy"
-	LogFieldValueComponentActionWorker = "ActionWorker"
+	LogFieldValueDefaultStr           = "none"
+	LogFieldValueDefaultI64     int64 = 0
+	LogFieldValueService              = "osproxy"
+	LogFieldValueComponentProxy       = "Proxy"
 )
 
 func GetLogCommonFields() map[string]any {
 	return map[string]any{
 		LogFieldKeyCommonService:   LogFieldValueService,
-		LogFieldKeyCommonComponent: LogFieldValueDefault,
+		LogFieldKeyCommonComponent: LogFieldValueDefaultStr,
 	}
 }
 
 func GetLogExtraFieldsProxy() map[string]any {
 	return map[string]any{
-		LogFieldKeyExtraError:     LogFieldValueDefault,
-		LogFieldKeyExtraRequest:   LogFieldValueDefault,
-		LogFieldKeyExtraResponse:  LogFieldValueDefault,
-		LogFieldKeyExtraDataBytes: LogFieldValueDefault,
-	}
-}
-
-func GetLogExtraFieldsActionWorker() map[string]any {
-	return map[string]any{
-		LogFieldKeyExtraError: LogFieldValueDefault,
+		LogFieldKeyExtraRequest:   LogFieldValueDefaultStr,
+		LogFieldKeyExtraRequestId: LogFieldValueDefaultStr,
+		LogFieldKeyExtraResponse:  LogFieldValueDefaultStr,
+		LogFieldKeyExtraReaction:  LogFieldValueDefaultStr,
+		LogFieldKeyExtraDataBytes: LogFieldValueDefaultI64,
+		LogFieldKeyExtraError:     LogFieldValueDefaultStr,
 	}
 }
 
 func ResetLogExtraFields(extra map[string]any) {
 	for k := range extra {
-		extra[k] = LogFieldValueDefault
+		extra[k] = LogFieldValueDefaultStr
 	}
 }
 
 func ResetLogExtraField(extra map[string]any, key string) {
 	if _, ok := extra[key]; ok {
-		extra[key] = LogFieldValueDefault
+		extra[key] = LogFieldValueDefaultStr
 	}
 }
 

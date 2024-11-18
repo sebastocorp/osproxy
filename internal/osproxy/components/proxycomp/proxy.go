@@ -3,6 +3,8 @@ package proxycomp
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -71,6 +73,7 @@ func (p *ProxyT) Run(wg *sync.WaitGroup) {
 
 	logExtra := global.GetLogExtraFieldsProxy()
 
+	p.log.Info("proxy initialized", logExtra)
 	err := p.server.ListenAndServe()
 	if err != nil {
 		global.SetLogExtraField(logExtra, global.LogFieldKeyExtraError, err.Error())
@@ -95,7 +98,21 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	logExtraFields := global.GetLogExtraFieldsProxy()
-	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest, utils.RequestString(req))
+	reqStr := utils.RequestString(req)
+	md5Hash := md5.New()
+	_, err = md5Hash.Write([]byte(reqStr))
+	if err != nil {
+		logResp := p.requestResponseError(w, http.StatusInternalServerError)
+
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
+		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
+		p.log.Error("unable to request id hash", logExtraFields)
+		return
+	}
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest, reqStr)
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequestId, hex.EncodeToString(md5Hash.Sum(nil)))
+	p.log.Info("handle request", logExtraFields)
+	global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest)
 
 	route, err := p.getRouteFromRequest(req)
 	if err != nil {
@@ -103,7 +120,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
-		p.log.Error("unable to process request", logExtraFields)
+		p.log.Error("unable to get route from request", logExtraFields)
 		return
 	}
 
@@ -115,15 +132,16 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
-		p.log.Error("unable to get object", logExtraFields)
+		p.log.Error("unable to make source request", logExtraFields)
 		return
 	}
 	defer resp.Body.Close()
 
-	p.log.Debug("success in get object reader", logExtraFields)
+	p.log.Debug("success in source request", logExtraFields)
 
 	for _, reacv := range p.config.Proxy.RespReactions {
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraReaction, fmt.Sprintf("{name: '%s', type: '%s'}", reacv.Name, reacv.Type))
+		p.log.Info("execute reaction", logExtraFields)
 		switch reacv.Condition.Key {
 		case ":host:":
 			{
@@ -140,7 +158,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 							resp2, err := p.sources[reacv.ResponseSustitution.Source].GetObject(r, route.Bucket)
 							if err != nil {
 								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
-								p.log.Error("unable to get object", logExtraFields)
+								p.log.Error("unable to make source request", logExtraFields)
 								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
 								continue
 							}
@@ -158,7 +176,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 							data, err := json.Marshal(object)
 							if err != nil {
 								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
-								p.log.Error("unable to get object json", logExtraFields)
+								p.log.Error("unable to post object json", logExtraFields)
 								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
 								continue
 							}
@@ -197,7 +215,6 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 
-	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, utils.ResponseString(resp))
 	// Copy object data in response body
 	dataBytes, dataErr := io.Copy(w, resp.Body)
 	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraDataBytes, dataBytes)
@@ -207,5 +224,6 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, utils.ResponseString(resp))
 	p.log.Info("success in handle request", logExtraFields)
 }
