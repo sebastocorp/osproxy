@@ -170,7 +170,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 						{
 							object := sources.ObjectT{
 								Bucket: route.Bucket,
-								Path:   strings.TrimSuffix(req.URL.Path, "/"),
+								Path:   strings.TrimPrefix(req.URL.Path, "/"),
 							}
 
 							data, err := json.Marshal(object)
