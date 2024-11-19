@@ -169,8 +169,9 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 					case "PostObject":
 						{
 							object := sources.ObjectT{
-								Bucket: route.Bucket,
-								Path:   strings.TrimPrefix(req.URL.Path, "/"),
+								Bucket:   route.Bucket,
+								Path:     strings.TrimPrefix(req.URL.Path, "/"),
+								Metadata: map[string][]string{},
 							}
 
 							for hk := range req.Header {
