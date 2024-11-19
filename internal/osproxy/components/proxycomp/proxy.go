@@ -173,6 +173,10 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 								Path:   strings.TrimPrefix(req.URL.Path, "/"),
 							}
 
+							for hk := range req.Header {
+								object.Metadata.Set(hk, req.Header.Get(hk))
+							}
+
 							data, err := json.Marshal(object)
 							if err != nil {
 								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())

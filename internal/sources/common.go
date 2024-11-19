@@ -4,11 +4,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 )
 
 type ObjectT struct {
-	Bucket string `json:"bucket"`
-	Path   string `json:"path"`
+	Bucket   string      `json:"bucket"`
+	Path     string      `json:"path"`
+	Metadata http.Header `json:"metadata"`
 }
 
 func (o *ObjectT) String() string {
