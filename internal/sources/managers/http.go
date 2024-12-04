@@ -32,17 +32,6 @@ func (m *HTTPManagerT) Init(ctx context.Context, config v1alpha5.ProxySourceConf
 	return err
 }
 
-// func (m *HTTPManagerT) GetObject(obj sources.ObjectT) (resp *http.Response, err error) {
-// 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s/%s", m.endpoint, obj.Bucket, obj.Path), nil)
-// 	if err != nil {
-// 		return resp, err
-// 	}
-
-// 	resp, err = m.client.Do(req)
-
-//		return resp, err
-//	}
-
 func (m *HTTPManagerT) GetObject(r *http.Request, bucket string) (resp *http.Response, err error) {
 	req, err := http.NewRequest(r.Method, fmt.Sprintf("%s/%s%s", m.endpoint, bucket, r.URL.Path), r.Body)
 	if err != nil {
@@ -51,7 +40,7 @@ func (m *HTTPManagerT) GetObject(r *http.Request, bucket string) (resp *http.Res
 
 	for hk, hvs := range r.Header {
 		for _, hv := range hvs {
-			req.Header.Set(hk, hv)
+			req.Header.Add(hk, hv)
 		}
 	}
 

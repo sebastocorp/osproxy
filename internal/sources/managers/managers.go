@@ -15,15 +15,15 @@ type ObjectManagerI interface {
 
 func GetManager(ctx context.Context, config v1alpha5.ProxySourceConfigT) (manager ObjectManagerI, err error) {
 	switch config.Type {
-	case "s3":
+	case "S3":
 		{
 			manager = &S3ManagerT{}
 		}
-	case "gcs":
+	case "GCS":
 		{
 			manager = &GCSManagerT{}
 		}
-	case "http":
+	case "HTTP":
 		{
 			manager = &HTTPManagerT{}
 		}

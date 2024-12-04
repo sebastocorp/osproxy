@@ -44,18 +44,6 @@ func GetLogExtraFieldsProxy() map[string]any {
 	}
 }
 
-func ResetLogExtraFields(extra map[string]any) {
-	for k := range extra {
-		extra[k] = LogFieldValueDefaultStr
-	}
-}
-
-func ResetLogExtraField(extra map[string]any, key string) {
-	if _, ok := extra[key]; ok {
-		extra[key] = LogFieldValueDefaultStr
-	}
-}
-
 func SetLogExtraField(extra map[string]any, key string, val any) {
 	if _, ok := extra[key]; ok {
 		extra[key] = val

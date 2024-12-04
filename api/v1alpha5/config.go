@@ -1,5 +1,7 @@
 package v1alpha5
 
+import "regexp"
+
 type OSProxyConfigT struct {
 	Proxy ProxyConfigT `yaml:"proxy"`
 }
@@ -48,15 +50,24 @@ type ProxySourceHTTPConfigT struct {
 // Modifications config
 
 type ProxyModifierConfigT struct {
-	Name   string                     `yaml:"name"`
-	Type   string                     `yaml:"type"`
-	Path   ProxyModifierPathConfigT   `yaml:"path"`
-	Header ProxyModifierHeaderConfigT `yaml:"header"`
+	Name      string                        `yaml:"name"`
+	Type      string                        `yaml:"type"`
+	Path      ProxyModifierPathConfigT      `yaml:"path"`
+	PathRegex ProxyModifierPathRegexConfigT `yaml:"pathRegex"`
+	Header    ProxyModifierHeaderConfigT    `yaml:"header"`
 }
 
 type ProxyModifierPathConfigT struct {
 	AddPrefix    string `yaml:"addPrefix"`
 	RemovePrefix string `yaml:"removePrefix"`
+}
+
+type ProxyModifierPathRegexConfigT struct {
+	Expression string `yaml:"expression"`
+	Replace    string `yaml:"replace"`
+
+	// Carry stuff
+	CompiledRegex *regexp.Regexp
 }
 
 type ProxyModifierHeaderConfigT struct {

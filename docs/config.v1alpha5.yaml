@@ -5,12 +5,12 @@ proxy:
   port: "8080"
   sources:
   - name: s3-example
-    type: s3
+    type: S3 # S3|GCS|HTTP
     s3:
-      endpoint: $OSPROXY_S3_ENDPOINT
-      accessKeyId: $OSPROXY_S3_ACCESS_KEY_ID
-      secretAccessKey: $OSPROXY_S3_SECRET_ACCESS_KEY
-      region: $OSPROXY_S3_REGION
+      endpoint: ${ENV:OSPROXY_S3_ENDPOINT}$
+      accessKeyId: ${ENV:OSPROXY_S3_ACCESS_KEY_ID}$
+      secretAccessKey: ${ENV:OSPROXY_S3_SECRET_ACCESS_KEY}$
+      region: eu-west-1
     # gcs:
     #   endpoint: https://storage.googleapis.com
     #   base64Credentials: exampre-gcs-credentials.json
@@ -18,7 +18,7 @@ proxy:
     #   endpoint: http://osproxy2.example.com:8080
   requestModifiers:
   - name: req-mod-example
-    type: path # path|header
+    type: Path # Path|PathRegex|Header
     path:
       removePrefix: "path/to/remove/"
       addPrefix: "path/to/remove/"
@@ -26,9 +26,11 @@ proxy:
     #   name: "X-Real-Ip"
     #   remove: false
     #   value: "0.0.0.0"
-  
+    # pathRegex:
+    #   expression: "expression"
+    #   replace: "/upload/replace"
   requestRouting:
-    matchType: pathPrefix # pathPrefix|host|headerValue
+    matchType: PathPrefix # Host|PathPrefix|HeaderValue
     headerKey: X-Real-Ip
     routes:
       "path/prefix/":
@@ -38,7 +40,7 @@ proxy:
   
   responseReactions:
   - name: reaction-example
-    type: ResponseSustitution # PostObject
+    type: ResponseSustitution # PostObject|ResponseSustitution
     condition:
       key: "X-Real-Ip" # <header-key>|:status:|:host:
       value: "127.0.0.1"

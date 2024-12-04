@@ -25,25 +25,28 @@ func NewOSProxy(configFilepath string) (o OSProxyT, err error) {
 	//--------------------------------------------------------------
 
 	for _, src := range o.config.Proxy.Sources {
-		if !slices.Contains([]string{"s3", "gcs", "http"}, src.Type) {
-			err = fmt.Errorf("sources must be one of this types %v", []string{"s3", "gcs", "http"})
+		srcTypes := []string{"S3", "GCS", "HTTP"}
+		if !slices.Contains(srcTypes, src.Type) {
+			err = fmt.Errorf("sources must be one of this types %v", srcTypes)
 			return o, err
 		}
 	}
 
 	for _, mod := range o.config.Proxy.RequestModifiers {
-		if !slices.Contains([]string{"path", "header"}, mod.Type) {
-			err = fmt.Errorf("modifiers must be one of this types %v", []string{"path", "header"})
+		modTypes := []string{"Path", "PathRegex", "Header"}
+		if !slices.Contains(modTypes, mod.Type) {
+			err = fmt.Errorf("modifiers must be one of this types %v", modTypes)
 			return o, err
 		}
 	}
 
-	if !slices.Contains([]string{"host", "pathPrefix", "headerValue"}, o.config.Proxy.RequestRouting.MatchType) {
-		err = fmt.Errorf("config field 'proxy.requestRouting.matchType' must be one of this types %v", []string{"host", "pathPrefix", "headerValue"})
+	routeTypes := []string{"Host", "PathPrefix", "HeaderValue"}
+	if !slices.Contains(routeTypes, o.config.Proxy.RequestRouting.MatchType) {
+		err = fmt.Errorf("config field 'proxy.requestRouting.matchType' must be one of this types %v", routeTypes)
 		return o, err
 	}
 
-	if o.config.Proxy.RequestRouting.MatchType == "headerValue" && o.config.Proxy.RequestRouting.HeaderKey == "" {
+	if o.config.Proxy.RequestRouting.MatchType == "HeaderValue" && o.config.Proxy.RequestRouting.HeaderKey == "" {
 		err = fmt.Errorf("header name in headerValue request routing match type must be set")
 		return o, err
 	}

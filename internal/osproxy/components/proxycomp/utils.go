@@ -3,19 +3,24 @@ package proxycomp
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"osproxy/api/v1alpha5"
 	"osproxy/internal/utils"
 	"strconv"
 	"strings"
 )
 
-func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatusCode int) string {
+func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatusCode int) utils.ResponseT {
 	respMessage := fmt.Sprintf("%d %s", respStatusCode, http.StatusText(respStatusCode))
 
 	respError := &http.Response{
-		Header:     http.Header{},
+		Header:     make(http.Header),
 		StatusCode: respStatusCode,
 		Status:     respMessage,
+		Request: &http.Request{
+			URL:    &url.URL{},
+			Header: make(http.Header),
+		},
 	}
 
 	respError.Header.Set("Content-Type", "text/plain")
@@ -30,22 +35,22 @@ func (p *ProxyT) requestResponseError(respWriter http.ResponseWriter, respStatus
 	respWriter.WriteHeader(respStatusCode)
 	respWriter.Write([]byte(respError.Status))
 
-	return utils.ResponseString(respError)
+	return utils.ResponseStruct(respError)
 }
 
 func (p *ProxyT) getRouteFromRequest(r *http.Request) (route v1alpha5.ProxyRouteConfigT, err error) {
 	var found bool = false
 	switch p.config.Proxy.RequestRouting.MatchType {
-	case "host":
+	case "Host":
 		{
 			route, found = p.config.Proxy.RequestRouting.Routes[r.Host]
 		}
-	case "headerValue":
+	case "HeaderValue":
 		{
 			route, found = p.config.Proxy.RequestRouting.Routes[r.Header.Get(p.config.Proxy.RequestRouting.HeaderKey)]
 
 		}
-	case "pathPrefix":
+	case "PathPrefix":
 		{
 			requestPath := strings.SplitN(r.URL.Path, "?", 2)[0]
 			for prefix, rout := range p.config.Proxy.RequestRouting.Routes {
@@ -71,11 +76,15 @@ func (p *ProxyT) modRequest(r *http.Request, modifications []string) (err error)
 	for _, modn := range modifications {
 		mod := p.requestModifiers[modn]
 		switch mod.Type {
-		case "path":
+		case "Path":
 			{
 				r.URL.Path = mod.Path.AddPrefix + strings.TrimPrefix(r.URL.Path, mod.Path.RemovePrefix)
 			}
-		case "header":
+		case "PathRegex":
+			{
+				r.URL.Path = mod.PathRegex.CompiledRegex.ReplaceAllString(r.URL.Path, mod.PathRegex.Replace)
+			}
+		case "Header":
 			{
 				r.Header.Set(mod.Header.Name, mod.Header.Value)
 				if mod.Header.Remove {

@@ -3,12 +3,11 @@ package proxycomp
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,6 +55,9 @@ func NewProxy(config *v1alpha5.OSProxyConfigT) (p ProxyT, err error) {
 	p.requestModifiers = map[string]*v1alpha5.ProxyModifierConfigT{}
 	for modi, modv := range p.config.Proxy.RequestModifiers {
 		p.requestModifiers[modv.Name] = &p.config.Proxy.RequestModifiers[modi]
+		if p.requestModifiers[modv.Name].Type == "PathRegex" {
+			p.requestModifiers[modv.Name].PathRegex.CompiledRegex = regexp.MustCompile(p.requestModifiers[modv.Name].PathRegex.Expression)
+		}
 	}
 
 	p.sources = map[string]managers.ObjectManagerI{}
@@ -98,21 +100,9 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	logExtraFields := global.GetLogExtraFieldsProxy()
-	reqStr := utils.RequestString(req)
-	md5Hash := md5.New()
-	_, err = md5Hash.Write([]byte(reqStr))
-	if err != nil {
-		logResp := p.requestResponseError(w, http.StatusInternalServerError)
-
-		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
-		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
-		p.log.Error("unable to request id hash", logExtraFields)
-		return
-	}
-	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest, reqStr)
-	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequestId, hex.EncodeToString(md5Hash.Sum(nil)))
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequestId, utils.RequestID(req))
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest, utils.RequestStruct(req))
 	p.log.Info("handle request", logExtraFields)
-	global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraRequest)
 
 	route, err := p.getRouteFromRequest(req)
 	if err != nil {
@@ -125,6 +115,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.modRequest(req, route.Modifiers)
+	p.log.Debug("request modified", logExtraFields)
 
 	resp, err := p.sources[route.Source].GetObject(req, route.Bucket)
 	if err != nil {
@@ -132,12 +123,12 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, logResp)
-		p.log.Error("unable to make source request", logExtraFields)
+		p.log.Error("unable to make request in source", logExtraFields)
 		return
 	}
 	defer resp.Body.Close()
 
-	p.log.Debug("success in source request", logExtraFields)
+	p.log.Debug("success making request in source", logExtraFields)
 
 	for _, reacv := range p.config.Proxy.RespReactions {
 		global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraReaction, fmt.Sprintf("{name: '%s', type: '%s'}", reacv.Name, reacv.Type))
@@ -158,8 +149,8 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 							resp2, err := p.sources[reacv.ResponseSustitution.Source].GetObject(r, route.Bucket)
 							if err != nil {
 								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
-								p.log.Error("unable to make source request", logExtraFields)
-								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
+								p.log.Error("unable to make request in ResponseSustitution reaction", logExtraFields)
+								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, global.LogFieldValueDefaultStr)
 								continue
 							}
 							resp.Body.Close()
@@ -181,8 +172,8 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 							data, err := json.Marshal(object)
 							if err != nil {
 								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
-								p.log.Error("unable to post object json", logExtraFields)
-								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
+								p.log.Error("unable to get object json in PostObject reaction", logExtraFields)
+								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, global.LogFieldValueDefaultStr)
 								continue
 							}
 
@@ -190,8 +181,8 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 							respPost, err := http.Post(reacv.PostObject.Endpoint, "application/json", bytes.NewBuffer(data))
 							if err != nil {
 								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, err.Error())
-								p.log.Error("unable to post object json", logExtraFields)
-								global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraError)
+								p.log.Error("unable to post object json in PostObject reaction", logExtraFields)
+								global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraError, global.LogFieldValueDefaultStr)
 								continue
 							}
 							respPost.Body.Close()
@@ -208,12 +199,12 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	global.ResetLogExtraField(logExtraFields, global.LogFieldKeyExtraReaction)
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraReaction, global.LogFieldValueDefaultStr)
 
 	// Set headers before response body
 	for hk, hvs := range resp.Header {
 		for _, hv := range hvs {
-			w.Header().Set(hk, hv)
+			w.Header().Add(hk, hv)
 		}
 	}
 	w.Header().Set("Connection", "close")
@@ -229,6 +220,6 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, utils.ResponseString(resp))
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, utils.ResponseStruct(resp))
 	p.log.Info("success in handle request", logExtraFields)
 }

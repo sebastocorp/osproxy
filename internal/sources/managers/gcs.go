@@ -46,23 +46,6 @@ func (m *GCSManagerT) Init(ctx context.Context, config v1alpha5.ProxySourceConfi
 	return err
 }
 
-// func (m *GCSManagerT) GetObject(obj sources.ObjectT) (resp *http.Response, err error) {
-// 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s/%s", m.endpoint, obj.Bucket, obj.Path), nil)
-// 	if err != nil {
-// 		return resp, err
-// 	}
-
-// 	token, err := m.creds.TokenSource.Token()
-// 	if err != nil {
-// 		return resp, err
-// 	}
-
-// 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
-// 	resp, err = m.client.Do(req)
-
-// 	return resp, err
-// }
-
 func (m *GCSManagerT) GetObject(r *http.Request, bucket string) (resp *http.Response, err error) {
 	req, err := http.NewRequest(r.Method, fmt.Sprintf("%s/%s%s", m.endpoint, bucket, r.URL.Path), r.Body)
 	if err != nil {
@@ -71,7 +54,7 @@ func (m *GCSManagerT) GetObject(r *http.Request, bucket string) (resp *http.Resp
 
 	for hk, hvs := range r.Header {
 		for _, hv := range hvs {
-			req.Header.Set(hk, hv)
+			req.Header.Add(hk, hv)
 		}
 	}
 
