@@ -128,6 +128,7 @@ func (p *ProxyT) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	global.SetLogExtraField(logExtraFields, global.LogFieldKeyExtraResponse, utils.ResponseStruct(resp))
 	p.log.Debug("success making request in source", logExtraFields)
 
 	for _, reacv := range p.config.Proxy.RespReactions {
