@@ -1,5 +1,7 @@
 package global
 
+import "osproxy/internal/utils"
+
 const (
 	HeaderContentType          = "Content-Type"
 	HeaderContentTypeAppJson   = "application/json"
@@ -35,9 +37,9 @@ func GetLogCommonFields() map[string]any {
 
 func GetLogExtraFieldsProxy() map[string]any {
 	return map[string]any{
-		LogFieldKeyExtraRequest:   LogFieldValueDefaultStr,
 		LogFieldKeyExtraRequestId: LogFieldValueDefaultStr,
-		LogFieldKeyExtraResponse:  LogFieldValueDefaultStr,
+		LogFieldKeyExtraRequest:   utils.DefaultRequestStruct(),
+		LogFieldKeyExtraResponse:  utils.DefaultResponseStruct(),
 		LogFieldKeyExtraReaction:  LogFieldValueDefaultStr,
 		LogFieldKeyExtraDataBytes: LogFieldValueDefaultI64,
 		LogFieldKeyExtraError:     LogFieldValueDefaultStr,

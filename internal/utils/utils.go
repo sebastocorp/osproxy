@@ -15,8 +15,8 @@ type RequestT struct {
 }
 
 type ResponseT struct {
-	Status  string      `json:"status"`
 	Code    int         `json:"code"`
+	Status  string      `json:"status"`
 	Headers http.Header `json:"headers"`
 	Request RequestT    `json:"request"`
 }
@@ -65,5 +65,21 @@ func ResponseStruct(r *http.Response) (res ResponseT) {
 
 	res.Request = RequestStruct(r.Request)
 
+	return res
+}
+
+func DefaultRequestStruct() (req RequestT) {
+	req.Method = "none"
+	req.Host = "none"
+	req.Path = "none"
+	req.Headers = make(http.Header)
+	return req
+}
+
+func DefaultResponseStruct() (res ResponseT) {
+	res.Code = 0
+	res.Status = "none"
+	res.Headers = make(http.Header)
+	res.Request = DefaultRequestStruct()
 	return res
 }
