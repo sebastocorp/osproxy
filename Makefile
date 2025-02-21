@@ -1,3 +1,4 @@
+PROJECT ?= osproxy
 BINARY ?= osproxy
 
 # Image URL to use all building/pushing image targets
@@ -85,9 +86,15 @@ check-go-target: ## Check presente of GOOS and GOARCH vars.
 		exit 1; \
 	fi
 
+VERSION_PACKAGE_PATH ?= $(PROJECT)/internal/cmd/version
+BUILD_LDFLAGS_VERSION ?= -X $(VERSION_PACKAGE_PATH).version=$$(cat version)
+BUILD_LDFLAGS_GOVER   ?= -X $(VERSION_PACKAGE_PATH).golang=$$(grep '^go ' go.mod | awk '{print $$2}')
+BUILD_LDFLAGS_COMMIT  ?= -X $(VERSION_PACKAGE_PATH).commit=$$(git rev-parse --short HEAD)
+BUILD_LDFLAGS ?= -ldflags "$(BUILD_LDFLAGS_VERSION) $(BUILD_LDFLAGS_GOVER) $(BUILD_LDFLAGS_COMMIT)"
+
 .PHONY: build
 build: fmt vet ## Build CLI binary.
-	go build -o bin/$(BINARY) cmd/main.go
+	go build $(BUILD_LDFLAGS) -o bin/$(BINARY) cmd/main.go
 
 .PHONY: run
 run: fmt vet ## Run a controller from your host.
@@ -98,11 +105,11 @@ run: fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+	$(CONTAINER_TOOL) build -t $(IMG) .
 
 .PHONY: docker-push
 docker-push: docker-build ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
+	$(CONTAINER_TOOL) push $(IMG)
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -113,11 +120,11 @@ docker-push: docker-build ## Push docker image with the manager.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	# copy existing Dockerfile and insert --platform=$(BUILDPLATFORM) into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name project-builder
 	$(CONTAINER_TOOL) buildx use project-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag $(IMG) -f Dockerfile.cross .
 	- $(CONTAINER_TOOL) buildx rm project-builder
 	rm Dockerfile.cross
 

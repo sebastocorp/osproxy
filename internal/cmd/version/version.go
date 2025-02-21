@@ -6,19 +6,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	descriptionShort = `Print the current version`
-
-	descriptionLong = `
-	Version show the current client version.`
+var (
+	version = "dev"
+	golang  = "none"
+	commit  = "none"
 )
 
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "version",
 		DisableFlagsInUseLine: true,
-		Short:                 descriptionShort,
-		Long:                  descriptionLong,
+		Short:                 `Print the current version`,
+		Long:                  `version command show the current client version and commit hash.`,
 
 		Run: RunCommand,
 	}
@@ -27,5 +26,5 @@ func NewCommand() *cobra.Command {
 }
 
 func RunCommand(cmd *cobra.Command, args []string) {
-	fmt.Print("version: 0.1.0\n")
+	fmt.Printf("%-8s %s\n%-8s %s\n%-8s %s\n", "version:", version, "golang:", golang, "commit:", commit)
 }
