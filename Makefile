@@ -86,11 +86,16 @@ check-go-target: ## Check presente of GOOS and GOARCH vars.
 		exit 1; \
 	fi
 
+CURRENT_VERSION ?= $(shell cat version)
+CURRENT_GOLANG_VERSION ?= $(shell grep '^go ' go.mod | awk '{print $$2}')
+CURRENT_COMMIT ?= $(shell git rev-parse --short HEAD)
+
 VERSION_PACKAGE_PATH ?= $(PROJECT)/internal/cmd/version
-BUILD_LDFLAGS_VERSION ?= -X $(VERSION_PACKAGE_PATH).version=$$(cat version)
-BUILD_LDFLAGS_GOVER   ?= -X $(VERSION_PACKAGE_PATH).golang=$$(grep '^go ' go.mod | awk '{print $$2}')
-BUILD_LDFLAGS_COMMIT  ?= -X $(VERSION_PACKAGE_PATH).commit=$$(git rev-parse --short HEAD)
-BUILD_LDFLAGS ?= -ldflags "$(BUILD_LDFLAGS_VERSION) $(BUILD_LDFLAGS_GOVER) $(BUILD_LDFLAGS_COMMIT)"
+BUILD_LDFLAGS_VERSION ?= -X $(VERSION_PACKAGE_PATH).version=$(CURRENT_VERSION)
+BUILD_LDFLAGS_GOVER   ?= -X $(VERSION_PACKAGE_PATH).golang=$(CURRENT_GOLANG_VERSION)
+BUILD_LDFLAGS_COMMIT  ?= -X $(VERSION_PACKAGE_PATH).commit=$(CURRENT_COMMIT)
+BUILD_LDFLAGS_VALUE ?= "$(BUILD_LDFLAGS_VERSION) $(BUILD_LDFLAGS_GOVER) $(BUILD_LDFLAGS_COMMIT)"
+BUILD_LDFLAGS ?= -ldflags $(BUILD_LDFLAGS_VALUE)
 
 .PHONY: build
 build: fmt vet ## Build CLI binary.
@@ -105,7 +110,7 @@ run: fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t $(IMG) .
+	$(CONTAINER_TOOL) build --build-arg LDFLAGS_VALUE=$(BUILD_LDFLAGS_VALUE) --no-cache --tag $(IMG) .
 
 .PHONY: docker-push
 docker-push: docker-build ## Push docker image with the manager.
@@ -124,7 +129,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name project-builder
 	$(CONTAINER_TOOL) buildx use project-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag $(IMG) -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --build-arg LDFLAGS_VALUE=$(BUILD_LDFLAGS_VALUE) --tag $(IMG) -f Dockerfile.cross .
 	- $(CONTAINER_TOOL) buildx rm project-builder
 	rm Dockerfile.cross
 
